@@ -525,42 +525,64 @@ class CBufferLayoutAlgorithm {
     }
 };
 
-
-
 class ColorArray {
-    static colorScale = d3.interpolateRainbow;
-
-    static colorRangeInfo = {
-        colorStart: 0,
-        colorEnd: 1,
-        useEndAsStart: false,
-    };
-
-    constructor(size, seed) {
-        this.rng = new Math.seedrandom(seed);
-        this.colors = this.#interpolateColors(size, ColorArray.colorScale, ColorArray.colorRangeInfo);
+    constructor(size, shuffle, shuffle_subdivisions) {
+        this.shuffle = shuffle;
+        this.shuffle_subdivisions = shuffle_subdivisions;
+        this.colors = this.#interpolateColors(size);
     }
-
-    #calculatePoint(i, intervalSize, colorRangeInfo) {
-        var { colorStart, colorEnd, useEndAsStart } = colorRangeInfo;
-        return (useEndAsStart
-            ? (colorEnd - (i * intervalSize))
-            : (colorStart + (i * intervalSize)));
+    OklabCHToString(l, c, h) {
+        return `oklch(${l} ${c * 100}% ${h})`;
+    }
+    GetRainbowColor(t) {
+        let l = 0.72;
+        let c = 1.0;
+        let h = 360 * t - 70;
+        return this.OklabCHToString(l, c, h);
     }
     /* Must use an interpolated color scale, which has a range of [0, 1] */
-    #interpolateColors(dataLength, colorScale, colorRangeInfo) {
-        var { colorStart, colorEnd } = colorRangeInfo;
-        var colorRange = colorEnd - colorStart;
-        var intervalSize = colorRange / dataLength;
-        var i, colorPoint;
-        var colorArray = [];
-
-        for (i = 0; i < dataLength; i++) {
-            colorPoint = this.#calculatePoint(i, intervalSize, colorRangeInfo);
-            colorArray.push(colorScale(colorPoint));
+    #interpolateColors(dataLength)
+    {
+        let colorArray = []
+        for (let i = 0; i < dataLength; i++) {
+            let colorPoint = i / dataLength;
+            colorArray.push(this.GetRainbowColor(colorPoint));
         }
-        // TODO: shuffle by distance instead of randomly (https://stackoverflow.com/questions/34154324/reordering-a-list-to-maximize-difference-of-adjacent-elements ?)
-        colorArray.sort((a, b) => 0.5 - this.rng());
+
+        // divide evenly into multiple ranges and zip them, in perhaps the most complicated way possible
+        if (this.shuffle) {
+            let subranges = [];
+            let largest_subrange_size = 0;
+            let count = 0;
+            let running_sum_frac = 0;
+            for (let subdiv = 0; subdiv < this.shuffle_subdivisions; subdiv++) {
+                subranges.push([]);
+                let subdiv_size_full = dataLength / this.shuffle_subdivisions;
+                let subdiv_size_floor = Math.floor(subdiv_size_full);
+                let subdiv_size_frac = subdiv_size_full - subdiv_size_floor;
+                running_sum_frac += subdiv_size_frac;
+                let this_subrange_size = subdiv_size_floor;
+                if (running_sum_frac > 0.999) {
+                    this_subrange_size += 1;
+                    running_sum_frac -= 1;
+                }
+                if (largest_subrange_size < this_subrange_size)
+                    largest_subrange_size = this_subrange_size;
+
+                for (let i = 0; i < this_subrange_size; i++) {
+                    subranges[subdiv].push(colorArray[count]);
+                    count++;
+                }
+            }
+
+            colorArray = [];
+            for (let i = 0; i < largest_subrange_size; i++) {
+                for (let j = 0; j < this.shuffle_subdivisions; j++) {
+                    if (i < subranges[j].length)
+                        colorArray.push(subranges[j][i]);
+                }
+            }
+        }
         return colorArray;
     }
     Get(i) {
@@ -606,11 +628,12 @@ function CreateColoredText(text, color) {
 }
 
 class StructPrinter {
-    constructor(text_node, expanded_arrays, alignment, color_seed) {
+    constructor(text_node, expanded_arrays, alignment, shuffle, shuffle_subdivisions) {
         this.text_node = text_node;
         this.expanded_arrays = expanded_arrays;
         this.alignment = alignment;
-        this.color_seed = color_seed;
+        this.shuffle = shuffle;
+        this.shuffle_subdivisions = shuffle_subdivisions;
         this.Reset();
     }
     Reset() {
@@ -648,7 +671,7 @@ class StructPrinter {
         this.Reset();
         this.text_node.replaceChildren();
         let member_count = LayoutCountStructMembers(struct, this.expanded_arrays);
-        this.colors = new ColorArray(member_count, this.color_seed);
+        this.colors = new ColorArray(member_count, this.shuffle, this.shuffle_subdivisions);
         this.AddAlignedText("", `${this.GetOffsetString("offset")} ${this.GetSizeString("size")} +pad\n`);
         this.text_node.children[this.text_node.children.length - 1].setAttribute("style", "font-weight: bold;");
         this.PrintColoredStructLayoutInternal(struct, null);
@@ -706,10 +729,11 @@ class StructPrinter {
 }
 
 class StructLayoutVisualizer {
-    constructor(svg_node, expanded_arrays, color_seed) {
+    constructor(svg_node, expanded_arrays, shuffle, shuffle_subdivisions) {
         this.svg_node = svg_node;
         this.expanded_arrays = expanded_arrays;
-        this.color_seed = color_seed;
+        this.shuffle = shuffle;
+        this.shuffle_subdivisions = shuffle_subdivisions;
         this.color_index = 0;
         this.width_per_byte = 24;
         this.outer_rect_height = 36;
@@ -825,7 +849,7 @@ class StructLayoutVisualizer {
     VisualizeLayout(layout) {
         this.svg_node.replaceChildren();
         let member_count = LayoutCountStructMembers(layout, this.expanded_arrays);
-        this.colors = new ColorArray(member_count, this.color_seed);
+        this.colors = new ColorArray(member_count, this.shuffle, this.shuffle_subdivisions);
         this.svg_node.setAttribute("width", 16 * this.width_per_byte + this.init_offset_x * 4);
         this.svg_node.setAttribute("height", Math.ceil(layout.size / 16) * this.height_per_vector + this.init_offset_y);
         for (let i = 0; i < Math.ceil(layout.size / 16); i++) {
@@ -885,9 +909,9 @@ function ParseHLSL() {
 
         let layouts = new CBufferLayoutAlgorithm(parser.cbuffers).GenerateLayout();
 
-        let printer = new StructPrinter(out_text, expanded_arrays.checked, text_alignment.value, color_seed.value);
+        let printer = new StructPrinter(out_text, expanded_arrays.checked, text_alignment.value, color_shuffle.checked, color_shuffle_subdivisions.value);
         printer.PrintColoredStructLayout(layouts[0]);
-        let viz = new StructLayoutVisualizer(out_svg, expanded_arrays.checked, color_seed.value);
+        let viz = new StructLayoutVisualizer(out_svg, expanded_arrays.checked, color_shuffle.checked, color_shuffle_subdivisions.value);
         viz.VisualizeLayout(layouts[0]);
     }
     catch (error) {

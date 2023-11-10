@@ -7,6 +7,7 @@
           href="monaco-editor/min/vs/editor/editor.main.css" />
 </head>
 <body>
+    <!--TODO: dark mode CSS -->
     <style>
         .boxsizing {
             box-sizing: border-box;
@@ -54,10 +55,14 @@
                 <input type="checkbox" id="expanded_arrays" onchange="this.form.submit()" checked="checked" />
                 <br />
                 <label for="text_alignment">Offset Text Alignment:</label>
-                <input type="number" id="text_alignment" oninput="this.form.submit()" value="28" style="width:3em;" />
+                <input type="number" id="text_alignment" oninput="this.form.submit()" value="28" min="10" max="200" style="width:3em;" />
                 <br />
-                <label for="color_seed">Color Seed:</label>
-                <input type="text" id="color_seed" oninput="this.form.submit()" value="asjdknasjkdbajhsbfjabhsjfbhasf" style="width:14em" />
+                <label for="color_shuffle">Shuffle Colors</label>
+                <input type="checkbox" id="color_shuffle" onchange="this.form.submit()" checked="checked"/>
+                <br />
+                <label for="color_seed">Color Shuffle Subdivisions:</label>
+                <input type="number" id="color_shuffle_subdivisions" oninput="this.form.submit()" value="3" min="1" max="10" style="width:2em" />
+                <br />
             </form>
         </div>
         <div class="resizer" id="dragMe"></div>
@@ -72,12 +77,6 @@
             </div>
         </div>
     </div>
-    <script src="https://d3js.org/d3-color.v1.min.js"
-            onerror="let t = document.createElement('text'); t.append('d3 library failed to load, please allow d3js.org in your script blocker\n'); t.setAttribute('style','font-weight:bold'); output_text.before(t);"></script>
-    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
-    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"
-            onerror="let t = document.createElement('text'); t.append('seedrandom library failed to load, please allow cdnjs.cloudflare.com in your script blocker\n'); t.setAttribute('style','font-weight:bold'); output_text.before(t);"></script>
 
     <!--NOTE: Monaco needs to be loaded last because of some AMD loader thing-->
     <script>
