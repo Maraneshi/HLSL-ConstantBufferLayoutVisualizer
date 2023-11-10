@@ -535,8 +535,8 @@ class ColorArray {
         return `oklch(${l} ${c * 100}% ${h})`;
     }
     GetRainbowColor(t) {
-        let l = 0.72;
-        let c = 1.0;
+        let l = color_lightness.valueAsNumber;
+        let c = color_saturation.valueAsNumber;
         let h = 360 * t - 70;
         return this.OklabCHToString(l, c, h);
     }
@@ -750,7 +750,7 @@ class StructLayoutVisualizer {
         let x = Math.floor(start_offset % 16) * this.width_per_byte    + this.init_offset_x;
         let y = Math.floor(start_offset / 16) * this.height_per_vector + this.init_offset_y;
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute("stroke", "#777777");
+        rect.setAttribute("stroke", "#888888");
         rect.setAttribute("stroke-width", this.stroke_width);
         rect.setAttribute("fill", "none");
         rect.setAttribute("width", 16 * this.width_per_byte);
@@ -760,6 +760,8 @@ class StructLayoutVisualizer {
         this.svg_node.append(rect);
         for (let i = 0; i <= 16; i += 4) {
             const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            if (dark_theme.checked)
+                text.setAttribute("fill", "#D4D4D4");
             text.setAttribute("x", this.init_offset_x + i * this.width_per_byte);
             text.setAttribute("y", y - 5);
             text.setAttribute("text-anchor", "middle");
@@ -767,8 +769,14 @@ class StructLayoutVisualizer {
             this.svg_node.append(text);
             if ((i % 16) != 0) {
                 const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                line.setAttribute("stroke", "#777777");
-                line.setAttribute("opacity", 0.25);
+                if (dark_theme.checked) {
+                    line.setAttribute("stroke", "#D4D4D4");
+                    line.setAttribute("opacity", 0.325);
+                }
+                else {
+                    line.setAttribute("stroke", "#777777");
+                    line.setAttribute("opacity", 0.25);
+                }
                 line.setAttribute("stroke-width", this.stroke_width / 2);
                 line.setAttribute("x1", this.init_offset_x + i * this.width_per_byte);
                 line.setAttribute("x2", this.init_offset_x + i * this.width_per_byte);
@@ -787,6 +795,8 @@ class StructLayoutVisualizer {
         let width = size_in_bytes * this.width_per_byte - pad*2;
         let height = this.outer_rect_height - pad*2;
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        if (this.level == 0)
+            rect.setAttribute("opacity", 0.70);
         rect.setAttribute("stroke", color);
         rect.setAttribute("stroke-width", this.stroke_width);
         rect.setAttribute("fill", "none");
@@ -797,6 +807,8 @@ class StructLayoutVisualizer {
         this.svg_node.append(rect);
         if (name) {
             const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            if (dark_theme.checked)
+                text.setAttribute("fill", "#D4D4D4");
             text.setAttribute("x", x + width / 2);
             text.setAttribute("y", y + height / 2);
             text.setAttribute("text-anchor", "middle");
@@ -882,7 +894,8 @@ cbuffer example {
 };`,
     language: 'cpp',
     minimap: { enabled: false },
-    automaticLayout: true
+    automaticLayout: true,
+    theme:'vs-dark'
 });
 
 let parse_timer;
@@ -893,6 +906,62 @@ editor.getModel().onDidChangeContent(() => {
     }
 });
 
+const light_theme_sheet = new CSSStyleSheet();
+
+let monaco_style = getComputedStyle(document.querySelector('.monaco-editor'));
+let monaco_style_fg = monaco_style.getPropertyValue('--vscode-editor-foreground');
+let monaco_style_bg = monaco_style.getPropertyValue('--vscode-editor-background');
+let monaco_style_button_fg = monaco_style.getPropertyValue('--vscode-button-foreground');
+let monaco_style_button_bg = monaco_style.getPropertyValue('--vscode-button-background');
+let monaco_style_input_fg = monaco_style.getPropertyValue('--vscode-input-foreground');
+let monaco_style_input_bg = monaco_style.getPropertyValue('--vscode-input-background');
+const dark_theme_sheet = new CSSStyleSheet();
+dark_theme_sheet.replaceSync(
+    `:root {
+        color: ${monaco_style_fg};
+        background-color: ${monaco_style_bg};
+    }
+    text {
+        color: ${monaco_style_fg};
+        background-color: ${monaco_style_bg};
+    }
+    span {
+        color: ${monaco_style_fg};
+        background-color: ${monaco_style_bg};
+    }
+    input {
+        color: ${monaco_style_input_fg};
+        background-color: ${monaco_style_input_bg};
+    }
+    button {
+        color: ${monaco_style_button_fg};
+        background-color: ${monaco_style_button_bg};
+    }`);
+document.adoptedStyleSheets = [...document.adoptedStyleSheets, dark_theme_sheet];
+
+function ApplyLightTheme() {
+    dark_theme_sheet.disabled = true;
+    monaco.editor.setTheme('vs');
+    color_lightness.value = 0.72;
+    color_lightness_value.value = 0.72;
+    color_saturation.value = 1.0;
+    color_saturation_value.value = 1.0;
+}
+
+function ApplyDarkTheme() {
+    dark_theme_sheet.disabled = false;
+    monaco.editor.setTheme('vs-dark');
+    color_lightness.value = 0.60;
+    color_lightness_value.value = 0.60;
+    color_saturation.value = 0.60;
+    color_saturation_value.value = 0.60;
+}
+function ToggleTheme() {
+    if (dark_theme.checked)
+        ApplyDarkTheme();
+    else
+        ApplyLightTheme();
+}
 function ParseHLSL() {
 
     out_text.replaceChildren();

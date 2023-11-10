@@ -29,7 +29,7 @@
         }
 
         .resizer {
-            background-color: #cbd5e0;
+            background-color: #777777;
             cursor: ew-resize;
             min-height: 100%;
             width: 2px;
@@ -47,9 +47,10 @@
                 <button type="submit">Parse</button>
                 <br />
                 <label for="auto_parse_delay">Auto-Parse Delay:</label>
-                <input type="range" id="auto_parse_delay" min="100" max="1500" step="50"
+                <input type="range" id="auto_parse_delay" min="100" max="1500" step="50" value="500"
                        oninput="if (this.value == this.getAttribute('max')) auto_parse_delay_value.value = 'off'; else auto_parse_delay_value.value = this.value + 'ms';" />
-                <output id="auto_parse_delay_value">800ms</output>
+                <output id="auto_parse_delay_value"></output>
+                <script>auto_parse_delay_value.value = auto_parse_delay.value;</script>
                 <br />
                 <label for="expanded_arrays">Expanded Arrays</label>
                 <input type="checkbox" id="expanded_arrays" onchange="this.form.submit()" checked="checked" />
@@ -57,12 +58,25 @@
                 <label for="text_alignment">Offset Text Alignment:</label>
                 <input type="number" id="text_alignment" oninput="this.form.submit()" value="28" min="10" max="200" style="width:3em;" />
                 <br />
+                <!-- TODO: currently I can't change anything about the colors or pretty much anything else without re-parsing from scratch -->
                 <label for="color_shuffle">Shuffle Colors</label>
-                <input type="checkbox" id="color_shuffle" onchange="this.form.submit()" checked="checked"/>
+                <input type="checkbox" id="color_shuffle" onchange="this.form.submit()" checked="checked" />
                 <br />
                 <label for="color_seed">Color Shuffle Subdivisions:</label>
-                <input type="number" id="color_shuffle_subdivisions" oninput="this.form.submit()" value="3" min="1" max="10" style="width:2em" />
+                <input type="number" id="color_shuffle_subdivisions" oninput="this.form.submit()" value="4" min="1" max="10" style="width:2em" />
                 <br />
+                <label for="color_lightness">Color Lightness:</label>
+                <input type="range" id="color_lightness" min="0.01" max="1.0" step="0.01" value="0.60" onchange="color_lightness_value.value = this.value; this.form.submit();" />
+                <output id="color_lightness_value"></output>
+                <script>color_lightness_value.value = color_lightness.value;</script>
+                <br />
+                <label for="color_saturation">Color Saturation:</label>
+                <input type="range" id="color_saturation" min="0.01" max="1.0" step="0.01" value="0.60" onchange="color_saturation_value.value = this.value; this.form.submit();" />
+                <output id="color_saturation_value"></output>
+                <script>color_saturation_value.value = color_saturation.value;</script>
+                <br />
+                <label for="dark_theme">Dark Theme</label>
+                <input type="checkbox" id="dark_theme" onchange="ToggleTheme(); this.form.submit();" checked="checked" />
             </form>
         </div>
         <div class="resizer" id="dragMe"></div>
