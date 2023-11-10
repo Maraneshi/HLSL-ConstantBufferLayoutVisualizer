@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet"
+          data-name="vs/editor/editor.main"
+          href="monaco-editor/min/vs/editor/editor.main.css" />
+</head>
+<body>
+    <style>
+        .boxsizing {
+            box-sizing: border-box;
+            min-width: calc(100% - 32px);
+            max-width: calc(100% - 32px);
+            min-height: 100%;
+        }
+
+        text {
+            font-family: Consolas, monospace;
+            font-size: 14px;
+            white-space: pre;
+        }
+
+        span {
+            font-family: Consolas, monospace;
+            font-size: 14px;
+            white-space: pre;
+        }
+
+        .resizer {
+            background-color: #cbd5e0;
+            cursor: ew-resize;
+            min-height: 100%;
+            width: 2px;
+            padding: 8px;
+            background-clip: content-box;
+        }
+    </style>
+
+
+    <h1>HLSL Constant Buffer Layout Visualizer</h1>
+    <div style="width: 100%; display: flex;">
+        <div style="float: left; width: 30%; flex: 0; flex-basis: auto;">
+            <form action="javascript:ParseHLSL()">
+                <div id="editor_container" style="width:100%; height:600px;"></div>
+                <button type="submit">Parse</button>
+                <br />
+                <label for="auto_parse_delay">Auto-Parse Delay:</label>
+                <input type="range" id="auto_parse_delay" min="100" max="1500" step="50"
+                       oninput="if (this.value == this.getAttribute('max')) auto_parse_delay_value.value = 'off'; else auto_parse_delay_value.value = this.value + 'ms';" />
+                <output id="auto_parse_delay_value">800ms</output>
+                <br />
+                <label for="expanded_arrays">Expanded Arrays</label>
+                <input type="checkbox" id="expanded_arrays" onchange="this.form.submit()" checked="checked" />
+                <br />
+                <label for="text_alignment">Offset Text Alignment:</label>
+                <input type="number" id="text_alignment" oninput="this.form.submit()" value="28" style="width:3em;" />
+                <br />
+                <label for="color_seed">Color Seed:</label>
+                <input type="text" id="color_seed" oninput="this.form.submit()" value="asjdknasjkdbajhsbfjabhsjfbhasf" style="width:14em" />
+            </form>
+        </div>
+        <div class="resizer" id="dragMe"></div>
+        <div style="float: right; display:flex;">
+            <div style="float: left; flex: 1; flex-basis: max-content; padding-right: 32px">
+                <div id="output_text">
+                </div>
+            </div>
+            <div style="float: right; flex: 2; flex-basis: max-content; padding-left: 32px;">
+                <svg id="output_svg">
+                </svg>
+            </div>
+        </div>
+    </div>
+    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+
+    <!--NOTE: Monaco needs to be loaded last because of some AMD loader thing-->
+    <script>
+        var require = { paths: { vs: 'monaco-editor/min/vs' } };
+    </script>
+    <script src="monaco-editor/min/vs/loader.js"></script>
+    <script src="monaco-editor/min/vs/editor/editor.main.nls.js"></script>
+    <script src="monaco-editor/min/vs/editor/editor.main.js"></script>
+
+    <script src="main.js"></script>
+    <script>ParseHLSL(); // parse on page load</script>
+
+    <h1>HLSL Constant Buffer Layout Rules</h1>
+    <div>Coming soon...</div>
+</body>
+</html>
