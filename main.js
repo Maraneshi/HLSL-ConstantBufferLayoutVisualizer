@@ -624,6 +624,7 @@ function CreateColoredText(text, color) {
     const span = document.createElement("span");
     span.setAttribute("style", `color:${color}`);
     span.append(text);
+    span.original_color = color;
     return span;
 }
 
@@ -729,7 +730,8 @@ class StructPrinter {
 }
 
 class StructLayoutVisualizer {
-    constructor(svg_node, expanded_arrays, shuffle, shuffle_subdivisions) {
+    constructor(svg_node, text_node, expanded_arrays, shuffle, shuffle_subdivisions) {
+        this.text_node = text_node;
         this.svg_node = svg_node;
         this.expanded_arrays = expanded_arrays;
         this.shuffle = shuffle;
@@ -799,14 +801,22 @@ class StructLayoutVisualizer {
             rect.setAttribute("opacity", 0.70);
         rect.setAttribute("stroke", color);
         rect.setAttribute("stroke-width", this.stroke_width);
-        rect.setAttribute("fill", "none");
+        if (dark_theme.checked) {
+            rect.setAttribute("fill", "black");
+            rect.setAttribute("fill-opacity", 0.2 / (this.level+1));
+        }
+        else {
+            rect.setAttribute("fill", "white");
+            rect.setAttribute("fill-opacity", 0.2 / (this.level+1));
+        }
         rect.setAttribute("width", width);
         rect.setAttribute("height", height);
         rect.setAttribute("x", x);
         rect.setAttribute("y", y);
         this.svg_node.append(rect);
+        let text = null;
         if (name) {
-            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text = document.createElementNS("http://www.w3.org/2000/svg", "text");
             if (dark_theme.checked)
                 text.setAttribute("fill", "#D4D4D4");
             text.setAttribute("x", x + width / 2);
@@ -817,6 +827,35 @@ class StructLayoutVisualizer {
             text.append(name);
             this.svg_node.append(text);
         }
+        // connect text and rect nodes for highlighting
+        if (this.level != 0) {
+            for (const span of this.text_node.children) {
+                if (span.original_color == color) { // yes, this is a bit stupid, but it works
+                    let selection_bg_color = dark_theme.checked ? "#04395e60" : "#0060c00a";
+                    let mouseenter = () => {
+                        if (text)
+                            text.setAttribute("style", "font-weight: bold;");
+                        span.setAttribute("style", `color: ${color}; font-weight: bold; background-color: ${selection_bg_color}; `);
+                        rect.setAttribute("stroke-width", 5);
+                    };
+                    let mouseleave = () => {
+                        if (text)
+                            text.setAttribute("style", "");
+                        span.setAttribute("style", `color: ${color};`);
+                        rect.setAttribute("stroke-width", this.stroke_width);
+                    };
+                    span.addEventListener("mouseenter", mouseenter);
+                    span.addEventListener("mouseleave", mouseleave);
+                    rect.addEventListener("mouseenter", mouseenter);
+                    rect.addEventListener("mouseleave", mouseleave);
+                    if (text) {
+                        text.addEventListener("mouseenter", mouseenter);
+                        text.addEventListener("mouseleave", mouseleave);
+                    }
+                }
+            }
+        }
+        
     }
     VisualizeMember(member, parent) {
         if (member.type instanceof StructType) {
@@ -980,7 +1019,7 @@ function ParseHLSL() {
 
         let printer = new StructPrinter(out_text, expanded_arrays.checked, text_alignment.value, color_shuffle.checked, color_shuffle_subdivisions.value);
         printer.PrintColoredStructLayout(layouts[0]);
-        let viz = new StructLayoutVisualizer(out_svg, expanded_arrays.checked, color_shuffle.checked, color_shuffle_subdivisions.value);
+        let viz = new StructLayoutVisualizer(out_svg, out_text, expanded_arrays.checked, color_shuffle.checked, color_shuffle_subdivisions.value);
         viz.VisualizeLayout(layouts[0]);
     }
     catch (error) {
@@ -994,6 +1033,7 @@ function ParseHLSL() {
         }];
         monaco.editor.setModelMarkers(editor.getModel(), "owner", markers);
 
+        out_text.replaceChildren();
         out_text.append(`ERROR(${error.line}:${error.start_column}): ${error.message}`);
     }
 }
