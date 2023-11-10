@@ -63,8 +63,8 @@
         <div class="resizer" id="dragMe"></div>
         <div style="float: right; display:flex;">
             <div style="float: left; flex: 1; flex-basis: max-content; padding-right: 32px">
-                <div id="output_text">
-                </div>
+                <text id="output_text">
+                </text>
             </div>
             <div style="float: right; flex: 2; flex-basis: max-content; padding-left: 32px;">
                 <svg id="output_svg">
@@ -72,10 +72,12 @@
             </div>
         </div>
     </div>
-    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-color.v1.min.js"
+            onerror="let t = document.createElement('text'); t.append('d3 library failed to load, please allow d3js.org in your script blocker\n'); t.setAttribute('style','font-weight:bold'); output_text.before(t);"></script>
     <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
     <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"
+            onerror="let t = document.createElement('text'); t.append('seedrandom library failed to load, please allow cdnjs.cloudflare.com in your script blocker\n'); t.setAttribute('style','font-weight:bold'); output_text.before(t);"></script>
 
     <!--NOTE: Monaco needs to be loaded last because of some AMD loader thing-->
     <script>
