@@ -7,7 +7,6 @@
           href="monaco-editor/min/vs/editor/editor.main.css" />
 </head>
 <body>
-    <!--TODO: dark mode CSS -->
     <style>
         .boxsizing {
             box-sizing: border-box;
@@ -60,7 +59,7 @@
                 <br />
                 <!-- TODO: currently I can't change anything about the colors or pretty much anything else without re-parsing from scratch -->
                 <label for="color_shuffle">Shuffle Colors</label>
-                <input type="checkbox" id="color_shuffle" onchange="this.form.submit()" checked="checked" />
+                <input type="checkbox" id="color_shuffle" onchange="this.form.submit()" />
                 <br />
                 <label for="color_seed">Color Shuffle Subdivisions:</label>
                 <input type="number" id="color_shuffle_subdivisions" oninput="this.form.submit()" value="4" min="1" max="10" style="width:2em" />
