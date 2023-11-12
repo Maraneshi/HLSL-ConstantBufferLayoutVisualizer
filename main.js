@@ -20,16 +20,16 @@ const TokenType = {
     Keywords : {
         CBuffer: "cbuffer", // NOTE: these must exactly match the keywords, at least on the right side
         Struct: "struct",
-        Typedef: "typedef",
-        Define: "define",
         Column_Major: "column_major",
         Row_Major: "row_major",
-        PackOffset: "packoffset",
-        Register: "register",
-        Uniform: "uniform",
-        ConstantBuffer: "ConstantBuffer",
-        Pragma: "pragma",
-        Pack_Matrix: "pack_matrix"
+    //    Typedef: "typedef",
+    //    Define: "define",
+    //    PackOffset: "packoffset",
+    //    Register: "register",
+    //    Uniform: "uniform",
+    //    ConstantBuffer: "ConstantBuffer",
+    //    Pragma: "pragma",
+    //    Pack_Matrix: "pack_matrix"
     },
     '(': ')',
     '(': ')',
@@ -44,6 +44,15 @@ const TokenType = {
     ':': ':',
     '#': '#'
 };
+
+function GetSupportedKeywords() {
+    let ret = [];
+    for (const [key, value] of Object.entries(TokenType.Keywords)) {
+        ret.push(value);
+    }
+    return ret;
+}
+
 function GetKeyByValue(object, value) {
     return Object.keys(object).find(key => object[key] === value);
 }
@@ -1155,5 +1164,3 @@ function EnableResizer(id) {
     // Attach the handler
     resizer.addEventListener('mousedown', mouseDownHandler);
 }
-
-EnableResizer("dragMe");

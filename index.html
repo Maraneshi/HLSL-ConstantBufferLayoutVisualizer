@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>HLSL Constant Buffer Layout Visualizer</title>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
     <link rel="stylesheet"
           data-name="vs/editor/editor.main"
@@ -42,7 +43,7 @@
     <div style="width: 100%; display: flex;">
         <div style="float: left; width: 30%; flex: 0; flex-basis: auto;">
             <form action="javascript:ParseHLSL()">
-                <div id="editor_container" style="width:100%; height:600px;"></div>
+                <div id="editor_container" style="width:100%; height:500px;"></div>
                 <button type="submit">Parse</button>
                 <br />
                 <label for="auto_parse_delay">Auto-Parse Delay:</label>
@@ -76,6 +77,9 @@
                 <br />
                 <label for="dark_theme">Dark Theme</label>
                 <input type="checkbox" id="dark_theme" onchange="ToggleTheme(); this.form.submit();" checked="checked" />
+                <br />
+                <br />
+                <span id="keywords_text"></span>
             </form>
         </div>
         <div class="resizer" id="dragMe"></div>
@@ -100,7 +104,16 @@
     <script src="monaco-editor/min/vs/editor/editor.main.js"></script>
 
     <script src="main.js"></script>
-    <script>ParseHLSL(); // parse on page load</script>
+    <script> // on page load
+        EnableResizer("dragMe");
+        ParseHLSL();
+        let keywords_str = "Supported Keywords:\n";
+        let keywords = GetSupportedKeywords();
+        for (let i = 0; i < keywords.length; i++) {
+            keywords_str += keywords[i] + ((i != keywords.length - 1) ? ", " : "");
+        }
+        keywords_text.append(keywords_str);
+    </script>
 
     <h1>HLSL Constant Buffer Layout Rules</h1>
     <div>Coming soon...</div>
