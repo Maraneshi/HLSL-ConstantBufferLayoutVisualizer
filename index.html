@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <!-- TODO: add OpenGraph embed info -->
     <title>HLSL Constant Buffer Layout Visualizer</title>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <!-- NOTE: I don't know whether it's worth doing this at all. The W3 image source is there for the squiggly lines in Monaco. -->
+    <META HTTP-EQUIV='Content-Security-Policy' CONTENT="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: 'self' w3.org/svg/2000;">
     <link rel="stylesheet"
           data-name="vs/editor/editor.main"
           href="monaco-editor/min/vs/editor/editor.main.css" />
@@ -16,13 +19,7 @@
             min-height: 100%;
         }
 
-        text {
-            font-family: Consolas, monospace;
-            font-size: 14px;
-            white-space: pre;
-        }
-
-        span {
+        .code {
             font-family: Consolas, monospace;
             font-size: 14px;
             white-space: pre;
@@ -37,12 +34,26 @@
             background-clip: content-box;
         }
     </style>
+    <style title="Dark Theme"> /* based on VS-Dark from Monaco */
+        :root {
+            color: rgb(212, 212, 212);
+            background-color: rgb(30, 30, 30);
+        }
+        input {
+            color: rgb(204, 204, 204);
+            background-color: rgb(60, 60, 60);
+        }
+        button {
+            color: rgb(255, 255, 255);
+            background-color: rgb(14, 99, 156);
+        }
+    </style>
 
 
     <h1>HLSL Constant Buffer Layout Visualizer</h1>
     <div style="width: 100%; display: flex;">
         <div style="float: left; width: 30%; flex: 0; flex-basis: auto;">
-            <form action="javascript:ParseHLSL()">
+            <form action="javascript:GlobalVisualizeCBuffer()">
                 <div id="editor_container" style="width:100%; height:500px;"></div>
                 <button type="submit">Parse</button>
                 <br />
@@ -52,70 +63,102 @@
                 <output id="auto_parse_delay_value"></output>
                 <script>auto_parse_delay_value.value = auto_parse_delay.value;</script>
                 <br />
+                <!-- TODO: Allow these to modify any visualizer on the page? Maybe I should give up trying to have the article and user-interactable visualizer on the same page. -->
                 <label for="expanded_arrays">Expanded Arrays</label>
-                <input type="checkbox" id="expanded_arrays" onchange="this.form.submit()" checked="checked" />
+                <input type="checkbox" id="expanded_arrays" onchange="GlobalVisualizerObject?.SetExpandedArrays(this.checked);" checked="checked" />
                 <br />
                 <label for="text_alignment">Offset Text Alignment:</label>
-                <input type="number" id="text_alignment" oninput="this.form.submit()" value="28" min="10" max="200" style="width:3em;" />
+                <input type="number" id="text_alignment" oninput="GlobalVisualizerObject?.SetTextAlignment(this.value);" value="28" min="10" max="200" style="width:3em;" />
                 <br />
-                <!-- TODO: currently I can't change anything about the colors or pretty much anything else without re-parsing from scratch -->
                 <label for="color_shuffle">Shuffle Colors</label>
-                <input type="checkbox" id="color_shuffle" onchange="this.form.submit()" />
+                <input type="checkbox" id="color_shuffle" onchange="GlobalVisualizerObject?.SetColorShuffle(this.checked);" />
                 <br />
                 <label for="color_seed">Color Shuffle Subdivisions:</label>
-                <input type="number" id="color_shuffle_subdivisions" oninput="this.form.submit()" value="4" min="1" max="10" style="width:2em" />
+                <input type="number" id="color_shuffle_subdivisions" oninput="GlobalVisualizerObject?.SetColorShuffleSubdivisions(this.value);" value="4" min="1" max="10" style="width:2em" />
                 <br />
                 <label for="color_lightness">Color Lightness:</label>
-                <input type="range" id="color_lightness" min="0.01" max="1.0" step="0.01" value="0.60" onchange="color_lightness_value.value = this.value; this.form.submit();" />
+                <input type="range" id="color_lightness" min="0.01" max="1.0" step="0.01" value="0.60" oninput="color_lightness_value.value = this.value; GlobalVisualizerObject?.SetColorLightness(this.valueAsNumber);" />
                 <output id="color_lightness_value"></output>
                 <script>color_lightness_value.value = color_lightness.value;</script>
                 <br />
                 <label for="color_saturation">Color Saturation:</label>
-                <input type="range" id="color_saturation" min="0.01" max="1.0" step="0.01" value="0.60" onchange="color_saturation_value.value = this.value; this.form.submit();" />
+                <input type="range" id="color_saturation" min="0.01" max="1.0" step="0.01" value="0.60" oninput="color_saturation_value.value = this.value; GlobalVisualizerObject?.SetColorSaturation(this.valueAsNumber);" />
                 <output id="color_saturation_value"></output>
                 <script>color_saturation_value.value = color_saturation.value;</script>
                 <br />
                 <label for="dark_theme">Dark Theme</label>
-                <input type="checkbox" id="dark_theme" onchange="ToggleTheme(); this.form.submit();" checked="checked" />
+                <input type="checkbox" id="dark_theme" onchange="SetDarkTheme(this.checked);" checked="checked" />
                 <br />
                 <br />
-                <span id="keywords_text"></span>
+                <span>Supported Keywords:</span>
+                <br />
+                <span id="keywords_text" class="code"></span>
             </form>
         </div>
         <div class="resizer" id="dragMe"></div>
         <div style="float: right; display:flex;">
             <div style="float: left; flex: 1; flex-basis: max-content; padding-right: 32px">
-                <text id="output_text">
+                <text id="output_text" class="code">
                 </text>
             </div>
             <div style="float: right; flex: 2; flex-basis: max-content; padding-left: 32px;">
-                <svg id="output_svg">
+                <svg id="output_svg" class="code">
                 </svg>
             </div>
         </div>
     </div>
 
-    <!--NOTE: Monaco needs to be loaded last because of some AMD loader thing-->
     <script>
         var require = { paths: { vs: 'monaco-editor/min/vs' } };
     </script>
     <script src="monaco-editor/min/vs/loader.js"></script>
     <script src="monaco-editor/min/vs/editor/editor.main.nls.js"></script>
     <script src="monaco-editor/min/vs/editor/editor.main.js"></script>
+    
+    <script type="module">
+        import { EnableResizer, ParseHLSLAndVisualize, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
 
-    <script src="main.js"></script>
-    <script> // on page load
+        window.SetDarkTheme = SetDarkTheme;
+
+        window.CBV_monaco_editor = CreateMonacoEditor(editor_container);
+
+        window.GetVisualizerOptions = () => {
+            let options = Object.assign({}, CBufferVisualizerOptionsDefault);
+            options.expanded_arrays = expanded_arrays.checked;
+            options.text_alignment = text_alignment.value;
+            options.color_shuffle = color_shuffle.checked;
+            options.color_shuffle_subdivisions = color_shuffle_subdivisions.value;
+            options.color_lightness = color_lightness.valueAsNumber;
+            options.color_saturation = color_saturation.valueAsNumber;
+            options.dark_theme = dark_theme.checked;
+            return options;
+        }
+
+        window.GlobalVisualizeCBuffer = () => {
+            window.GlobalVisualizerObject = ParseHLSLAndVisualize(CBV_monaco_editor, output_text, output_svg, GetVisualizerOptions());
+        }
+
+        window.CBV_monaco_editor.getModel().onDidChangeContent(() => {
+            if (auto_parse_delay.value != auto_parse_delay.getAttribute("max")) {
+                clearTimeout(window.CBV_parse_timer);
+                window.CBV_parse_timer = setTimeout(GlobalVisualizeCBuffer, auto_parse_delay.value);
+            }
+        });
+
         EnableResizer("dragMe");
-        ParseHLSL();
-        let keywords_str = "Supported Keywords:\n";
+
+        let keywords_str = "";
         let keywords = GetSupportedKeywords();
         for (let i = 0; i < keywords.length; i++) {
             keywords_str += keywords[i] + ((i != keywords.length - 1) ? ", " : "");
         }
         keywords_text.append(keywords_str);
+
+        GlobalVisualizeCBuffer();
     </script>
 
+    <!-- TODO: Write actual article about rules, put large button in front of loading the Visualizer, delay load Monaco -->
     <h1>HLSL Constant Buffer Layout Rules</h1>
-    <div>Coming soon...</div>
+    <div>Coming soon...</div> 
 </body>
 </html>
