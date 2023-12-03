@@ -2,8 +2,11 @@
 <html>
 <head>
     <!-- TODO: add OpenGraph embed info -->
-    <title>HLSL Constant Buffer Layout Visualizer</title>
+    <title>HLSL Constant Buffer Packing Rules & Layout Visualizer</title>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <meta name="description" content="HLSL Constant Buffer Packing Rules and Layout Visualizer" />
+    <meta name="robots" content="index, archive" />
+    <meta name="keywords" content="HLSL, DirectX, Direct3D, D3D11, D3D12, DX11, DX12, constant buffer, packing rules, struct packing, struct layout, cbuffer" />
     <!-- NOTE: I don't know whether it's worth doing this at all. The W3 image source is there for the squiggly lines in Monaco. -->
     <META HTTP-EQUIV='Content-Security-Policy' CONTENT="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: 'self' w3.org/svg/2000;">
     <link rel="stylesheet"
@@ -29,136 +32,188 @@
             background-color: #777777;
             cursor: ew-resize;
             min-height: 100%;
+            min-width:2px;
             width: 2px;
             padding: 8px;
             background-clip: content-box;
         }
+        .resizer_vert {
+            background-color: #777777;
+            cursor: ns-resize;
+            min-width: 100%;
+            min-height: 2px;
+            height: 2px;
+            padding: 8px;
+            background-clip: content-box;
+        }
     </style>
-    <style title="Dark Theme"> /* based on VS-Dark from Monaco */
+    <style title="CBV Dark Theme">
+        /* based on VS-Dark from Monaco */
         :root {
             color: rgb(212, 212, 212);
             background-color: rgb(30, 30, 30);
         }
+
         input {
             color: rgb(204, 204, 204);
             background-color: rgb(60, 60, 60);
         }
+
         button {
             color: rgb(255, 255, 255);
             background-color: rgb(14, 99, 156);
         }
     </style>
-
-
-    <h1>HLSL Constant Buffer Layout Visualizer</h1>
-    <div style="width: 100%; display: flex;">
-        <div style="float: left; width: 30%; flex: 0; flex-basis: auto;">
-            <form action="javascript:GlobalVisualizeCBuffer()">
-                <div id="editor_container" style="width:100%; height:500px;"></div>
-                <button type="submit">Parse</button>
-                <br />
-                <label for="auto_parse_delay">Auto-Parse Delay:</label>
-                <input type="range" id="auto_parse_delay" min="100" max="1500" step="50" value="500"
-                       oninput="if (this.value == this.getAttribute('max')) auto_parse_delay_value.value = 'off'; else auto_parse_delay_value.value = this.value + 'ms';" />
-                <output id="auto_parse_delay_value"></output>
-                <script>auto_parse_delay_value.value = auto_parse_delay.value;</script>
-                <br />
-                <!-- TODO: Allow these to modify any visualizer on the page? Maybe I should give up trying to have the article and user-interactable visualizer on the same page. -->
-                <label for="expanded_arrays">Expanded Arrays</label>
-                <input type="checkbox" id="expanded_arrays" onchange="GlobalVisualizerObject?.SetExpandedArrays(this.checked);" checked="checked" />
-                <br />
-                <label for="text_alignment">Offset Text Alignment:</label>
-                <input type="number" id="text_alignment" oninput="GlobalVisualizerObject?.SetTextAlignment(this.value);" value="28" min="10" max="200" style="width:3em;" />
-                <br />
-                <label for="color_shuffle">Shuffle Colors</label>
-                <input type="checkbox" id="color_shuffle" onchange="GlobalVisualizerObject?.SetColorShuffle(this.checked);" />
-                <br />
-                <label for="color_seed">Color Shuffle Subdivisions:</label>
-                <input type="number" id="color_shuffle_subdivisions" oninput="GlobalVisualizerObject?.SetColorShuffleSubdivisions(this.value);" value="4" min="1" max="10" style="width:2em" />
-                <br />
-                <label for="color_lightness">Color Lightness:</label>
-                <input type="range" id="color_lightness" min="0.01" max="1.0" step="0.01" value="0.60" oninput="color_lightness_value.value = this.value; GlobalVisualizerObject?.SetColorLightness(this.valueAsNumber);" />
-                <output id="color_lightness_value"></output>
-                <script>color_lightness_value.value = color_lightness.value;</script>
-                <br />
-                <label for="color_saturation">Color Saturation:</label>
-                <input type="range" id="color_saturation" min="0.01" max="1.0" step="0.01" value="0.60" oninput="color_saturation_value.value = this.value; GlobalVisualizerObject?.SetColorSaturation(this.valueAsNumber);" />
-                <output id="color_saturation_value"></output>
-                <script>color_saturation_value.value = color_saturation.value;</script>
-                <br />
-                <label for="dark_theme">Dark Theme</label>
-                <input type="checkbox" id="dark_theme" onchange="SetDarkTheme(this.checked);" checked="checked" />
-                <br />
-                <br />
-                <span>Supported Keywords:</span>
-                <br />
-                <span id="keywords_text" class="code"></span>
-            </form>
-        </div>
-        <div class="resizer" id="dragMe"></div>
-        <div style="float: right; display:flex;">
-            <div style="float: left; flex: 1; flex-basis: max-content; padding-right: 32px">
-                <text id="output_text" class="code">
-                </text>
+    <main>
+        <article>
+            <div style="margin: 0px auto; width:fit-content; max-width:100%">
+                <h1>HLSL Constant Buffer Layout Visualizer</h1>
+                <button id="CBV_enable_button" type="button" style="width: 15em; height: 5em; font-size: larger; margin:auto; display:block;"
+                        onclick="CBV_Initialize(); this.disabled = true; this.textContent = 'Loading...'">Click to Load Visualizer</button>
             </div>
-            <div style="float: right; flex: 2; flex-basis: max-content; padding-left: 32px;">
-                <svg id="output_svg" class="code">
-                </svg>
+            <div id="CBV_root_container" style="margin: 0px auto;  max-width:100%" hidden>
+                <div style="width: 100%; display: flex; justify-content: center;">
+                    <div style="float: left; flex: 0; flex-basis: auto; min-width: 20em; width:25em;">
+                        <form action="javascript:CBV_VisualizeCBuffer()">
+                            <div id="CBV_editor_container" style="width:100%; min-height:12em"></div>
+                            <div class="resizer_vert" id="CBV_resizer_vert"></div>
+                            <div>
+                                <button type="submit">Parse</button>
+                                <br />
+                                <label for="CBV_auto_parse_delay">Auto-Parse Delay:</label>
+                                <input type="range" id="CBV_auto_parse_delay" min="100" max="1500" step="50" value="500"
+                                       oninput="if (this.value == this.getAttribute('max')) CBV_auto_parse_delay_value.value = 'off'; else CBV_auto_parse_delay_value.value = this.value + 'ms';" />
+                                <output id="CBV_auto_parse_delay_value"></output>
+                                <script>CBV_auto_parse_delay_value.value = CBV_auto_parse_delay.value;</script>
+                                <br />
+                                <!-- TODO: Allow these to modify any visualizer on the page -->
+                                <label for="CBV_expanded_arrays">Expanded Arrays</label>
+                                <input type="checkbox" id="CBV_expanded_arrays" onchange="CBV_VisualizerObject?.SetExpandedArrays(this.checked);" checked="checked" />
+                                <br />
+                                <label for="CBV_text_alignment">Offset Text Alignment:</label>
+                                <input type="number" id="CBV_text_alignment" oninput="CBV_VisualizerObject?.SetTextAlignment(this.value);" value="28" min="10" max="200" style="width:3em;" />
+                                <br />
+                                <label for="CBV_color_shuffle">Shuffle Colors</label>
+                                <input type="checkbox" id="CBV_color_shuffle" onchange="CBV_VisualizerObject?.SetColorShuffle(this.checked);" />
+                                <br />
+                                <label for="CBV_color_shuffle_subdivisions">Color Shuffle Subdivisions:</label>
+                                <input type="number" id="CBV_color_shuffle_subdivisions" oninput="CBV_VisualizerObject?.SetColorShuffleSubdivisions(this.value);" value="4" min="1" max="10" style="width:2em" />
+                                <br />
+                                <label for="CBV_color_lightness">Color Lightness:</label>
+                                <input type="range" id="CBV_color_lightness" min="0.01" max="1.0" step="0.01" value="0.60" oninput="CBV_color_lightness_value.value = this.value; CBV_VisualizerObject?.SetColorLightness(this.valueAsNumber);" />
+                                <output id="CBV_color_lightness_value"></output>
+                                <script>CBV_color_lightness_value.value = CBV_color_lightness.value;</script>
+                                <br />
+                                <label for="CBV_color_saturation">Color Saturation:</label>
+                                <input type="range" id="CBV_color_saturation" min="0.01" max="1.0" step="0.01" value="0.60" oninput="CBV_color_saturation_value.value = this.value; CBV_VisualizerObject?.SetColorSaturation(this.valueAsNumber);" />
+                                <output id="CBV_color_saturation_value"></output>
+                                <script>CBV_color_saturation_value.value = CBV_color_saturation.value;</script>
+                                <br />
+                                <label for="CBV_dark_theme">Dark Theme</label>
+                                <input type="checkbox" id="CBV_dark_theme" onchange="CBV_SetDarkTheme(this.checked);" checked="checked" />
+                                <br />
+                                <br />
+                                <span>Supported Keywords:</span>
+                                <br />
+                                <span id="CBV_keywords_text" class="code" style="white-space:pre-wrap"></span>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="resizer" id="CBV_resizer_horz"></div>
+                    <div style="float: right; display:flex;">
+                        <div style="float: left; flex: 1; flex-basis: max-content; padding-right: 24px">
+                            <text id="CBV_output_text" class="code">
+                            </text>
+                        </div>
+                        <div style="float: right; flex: 2; flex-basis: max-content; padding-left: 24px;">
+                            <svg id="CBV_output_svg" class="code">
+                            </svg>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
+        </article>
 
-    <script>
-        var require = { paths: { vs: 'monaco-editor/min/vs' } };
-    </script>
-    <script src="monaco-editor/min/vs/loader.js"></script>
-    <script src="monaco-editor/min/vs/editor/editor.main.nls.js"></script>
-    <script src="monaco-editor/min/vs/editor/editor.main.js"></script>
-    
-    <script type="module">
-        import { EnableResizer, ParseHLSLAndVisualize, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
+        <script>
+            var require = { paths: { vs: 'monaco-editor/min/vs' } };
+        </script>
+        <!-- NOTE: loaded on demand in code below -->
+        <!--<script src="monaco-editor/min/vs/loader.js"></script>
+        <script src="monaco-editor/min/vs/editor/editor.main.nls.js"></script>
+        <script src="monaco-editor/min/vs/editor/editor.main.js"></script>-->
 
-        window.SetDarkTheme = SetDarkTheme;
+        <script type="module">
+            import { EnableResizer, ParseHLSLAndVisualize, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
 
-        window.CBV_monaco_editor = CreateMonacoEditor(editor_container);
+            window.CBV_SetDarkTheme = SetDarkTheme;
 
-        window.GetVisualizerOptions = () => {
-            let options = Object.assign({}, CBufferVisualizerOptionsDefault);
-            options.expanded_arrays = expanded_arrays.checked;
-            options.text_alignment = text_alignment.value;
-            options.color_shuffle = color_shuffle.checked;
-            options.color_shuffle_subdivisions = color_shuffle_subdivisions.value;
-            options.color_lightness = color_lightness.valueAsNumber;
-            options.color_saturation = color_saturation.valueAsNumber;
-            options.dark_theme = dark_theme.checked;
-            return options;
-        }
-
-        window.GlobalVisualizeCBuffer = () => {
-            window.GlobalVisualizerObject = ParseHLSLAndVisualize(CBV_monaco_editor, output_text, output_svg, GetVisualizerOptions());
-        }
-
-        window.CBV_monaco_editor.getModel().onDidChangeContent(() => {
-            if (auto_parse_delay.value != auto_parse_delay.getAttribute("max")) {
-                clearTimeout(window.CBV_parse_timer);
-                window.CBV_parse_timer = setTimeout(GlobalVisualizeCBuffer, auto_parse_delay.value);
+            window.GetVisualizerOptions = () => {
+                let options = Object.assign({}, CBufferVisualizerOptionsDefault);
+                options.expanded_arrays = CBV_expanded_arrays.checked;
+                options.text_alignment = CBV_text_alignment.value;
+                options.color_shuffle = CBV_color_shuffle.checked;
+                options.color_shuffle_subdivisions = CBV_color_shuffle_subdivisions.value;
+                options.color_lightness = CBV_color_lightness.valueAsNumber;
+                options.color_saturation = CBV_color_saturation.valueAsNumber;
+                options.dark_theme = CBV_dark_theme.checked;
+                return options;
             }
-        });
 
-        EnableResizer("dragMe");
+            EnableResizer(CBV_resizer_horz, false);
+            EnableResizer(CBV_resizer_vert, true);
 
-        let keywords_str = "";
-        let keywords = GetSupportedKeywords();
-        for (let i = 0; i < keywords.length; i++) {
-            keywords_str += keywords[i] + ((i != keywords.length - 1) ? ", " : "");
-        }
-        keywords_text.append(keywords_str);
+            let keywords_str = "";
+            let keywords = GetSupportedKeywords();
+            for (let i = 0; i < keywords.length; i++) {
+                keywords_str += keywords[i] + ((i != keywords.length - 1) ? ", " : "");
+            }
+            CBV_keywords_text.append(keywords_str);
 
-        GlobalVisualizeCBuffer();
-    </script>
+            const DelayedInit = () => {
+                window.CBV_monaco_editor = CreateMonacoEditor(CBV_editor_container);
 
-    <!-- TODO: Write actual article about rules, put large button in front of loading the Visualizer, delay load Monaco -->
-    <h1>HLSL Constant Buffer Layout Rules</h1>
-    <div>Coming soon...</div> 
+                window.CBV_VisualizeCBuffer = () => {
+                    window.CBV_VisualizerObject = ParseHLSLAndVisualize(CBV_monaco_editor, CBV_output_text, CBV_output_svg, GetVisualizerOptions());
+                }
+
+                window.CBV_monaco_editor.getModel().onDidChangeContent(() => {
+                    if (CBV_auto_parse_delay.value != CBV_auto_parse_delay.getAttribute("max")) {
+                        clearTimeout(window.CBV_parse_timer);
+                        window.CBV_parse_timer = setTimeout(CBV_VisualizeCBuffer, CBV_auto_parse_delay.value);
+                    }
+                });
+                //window.CBV_monaco_editor.onDidContentSizeChange(() => {
+                //    CBV_editor_container.style.height = `calc(max(${CBV_monaco_editor.getContentHeight() + 'px'}, ${CBV_editor_container.style.height}))`;
+                //});
+
+                CBV_VisualizeCBuffer();
+                CBV_enable_button.style.display = 'none';
+                CBV_root_container.hidden = false;
+            }
+
+            window.CBV_Initialize = () => {
+                const loadScript = (file, callback) => {
+                    var script = document.createElement('script');
+                    script.src = file;
+                    if (callback)
+                        script.onload = callback;
+                    document.body.appendChild(script);
+                }
+                loadScript("monaco-editor/min/vs/loader.js");
+                loadScript("monaco-editor/min/vs/editor/editor.main.nls.js");
+                loadScript("monaco-editor/min/vs/editor/editor.main.js", DelayedInit);
+            }
+        </script>
+
+        <!-- TODO: Write actual article about rules -->
+        <article>
+            <div style="margin: 0px auto; width:fit-content; max-width:100%">
+                <h1>HLSL Constant Buffer Packing Rules</h1>
+            </div>
+            <div style="margin: 0px auto; width:50em; max-width:100%">
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. In feugiat, velit vitae faucibus ultricies, diam sapien ultrices magna, ut rhoncus sem est non nisi. Sed pretium neque ut arcu egestas iaculis. Praesent vitae pharetra lacus. Nulla id ullamcorper libero, et molestie mauris. Cras non risus arcu. Donec rhoncus magna ut quam varius venenatis. Integer eget facilisis lacus, ac auctor dolor. In finibus leo ut mauris ultrices, in vulputate nisi tempus. Praesent sapien sapien, tristique bibendum sollicitudin quis, bibendum eu ex. Nunc massa sapien, auctor at orci a, mollis semper odio. Suspendisse placerat diam sit amet nisl rhoncus mollis. Mauris dapibus venenatis tortor sit amet lobortis. Nulla gravida magna non nibh ullamcorper, ut lacinia ligula fermentum.</p>
+            </div>
+        </article>
+    </main>
 </body>
 </html>

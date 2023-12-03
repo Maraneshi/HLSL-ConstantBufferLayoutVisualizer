@@ -207,6 +207,9 @@ class StructPrinter {
     }
 }
 
+// TODO: can we do this with a CSS sheet and then dynamically adjust that one instead of manually going through each element? but these aren't CSS properties...
+//       Apparently some or all of these can be set in CSS instead. We may be able to put "level" in a CSS variable too.
+
 function ApplyThemeOuterRectText(text, dark_theme) {
     if (dark_theme)
         text.setAttribute("fill", "#D4D4D4");
@@ -465,17 +468,21 @@ export class CBufferVisualizer {
 
         // disconnect text and rect nodes
         let remove_event_listeners = (member) => {
-            for (let rect of member.CBV_rects) {
-                if (rect.rect.CBV_level != 0) {
-                    rect.rect.removeEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
-                    rect.rect.removeEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
-                    rect.text?.removeEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
-                    rect.text?.removeEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+            if (member.CBV_rects != undefined) {
+                for (let rect of member.CBV_rects) {
+                    if (rect.rect.CBV_level != 0) {
+                        rect.rect.removeEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
+                        rect.rect.removeEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+                        rect.text?.removeEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
+                        rect.text?.removeEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+                    }
                 }
             }
-            for (let span of member.CBV_texts) {
-                span.removeEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
-                span.removeEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+            if (member.CBV_texts != undefined) {
+                for (let span of member.CBV_texts) {
+                    span.removeEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
+                    span.removeEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+                }
             }
         };
 
@@ -492,35 +499,47 @@ export class CBufferVisualizer {
             let selection_bg_color = this.options.dark_theme ? "#04395e60" : "#0060c00a";
 
             member.CBV_mouseenter = () => {
-                for (let rect of member.CBV_rects) {
-                    rect.rect.setAttribute("stroke-width", 5);
-                    rect.text?.setAttribute("style", "font-weight: bold;");
+                if (member.CBV_rects != undefined) {
+                    for (let rect of member.CBV_rects) {
+                        rect.rect.setAttribute("stroke-width", 5);
+                        rect.text?.setAttribute("style", "font-weight: bold;");
+                    }
                 }
-                for (let span of member.CBV_texts) {
-                    span.setAttribute("style", `color: ${span.style.color}; font-weight: bold; background-color: ${selection_bg_color}; `);
+                if (member.CBV_texts != undefined) {
+                    for (let span of member.CBV_texts) {
+                        span.setAttribute("style", `color: ${span.style.color}; font-weight: bold; background-color: ${selection_bg_color}; `);
+                    }
                 }
             };
             member.CBV_mouseleave = () => {
-                for (let rect of member.CBV_rects) {
-                    rect.rect.setAttribute("stroke-width", 2); // TODO: this must be the same as stroke_width in StructLayoutVisualizer
-                    rect.text?.setAttribute("style", "");
+                if (member.CBV_rects != undefined) {
+                    for (let rect of member.CBV_rects) {
+                        rect.rect.setAttribute("stroke-width", 2); // TODO: this must be the same as stroke_width in StructLayoutVisualizer
+                        rect.text?.setAttribute("style", "");
+                    }
                 }
-                for (let span of member.CBV_texts) {
-                    span.setAttribute("style", `color: ${span.style.color};`);
+                if (member.CBV_texts != undefined) {
+                    for (let span of member.CBV_texts) {
+                        span.setAttribute("style", `color: ${span.style.color};`);
+                    }
                 }
             };
 
-            for (let rect of member.CBV_rects) {
-                if (rect.rect.CBV_level != 0) {
-                    rect.rect.addEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
-                    rect.rect.addEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
-                    rect.text?.addEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
-                    rect.text?.addEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+            if (member.CBV_rects != undefined) {
+                for (let rect of member.CBV_rects) {
+                    if (rect.rect.CBV_level != 0) {
+                        rect.rect.addEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
+                        rect.rect.addEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+                        rect.text?.addEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
+                        rect.text?.addEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+                    }
                 }
             }
-            for (let span of member.CBV_texts) {
-                span.addEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
-                span.addEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+            if (member.CBV_texts != undefined) {
+                for (let span of member.CBV_texts) {
+                    span.addEventListener("mouseenter", member.CBV_mouseenter, { passive: true });
+                    span.addEventListener("mouseleave", member.CBV_mouseleave, { passive: true });
+                }
             }
         };
 
