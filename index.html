@@ -1,33 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <!-- TODO: add OpenGraph embed info -->
+    <!-- TODO: add OpenGraph/Twitter embed info -->
     <title>HLSL Constant Buffer Packing Rules & Layout Visualizer</title>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
     <meta name="description" content="HLSL Constant Buffer Packing Rules and Layout Visualizer" />
     <meta name="robots" content="index, archive" />
     <meta name="keywords" content="HLSL, DirectX, Direct3D, D3D11, D3D12, DX11, DX12, constant buffer, packing rules, struct packing, struct layout, cbuffer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- NOTE: I don't know whether it's worth doing this at all. The W3 image source is there for the squiggly lines in Monaco. -->
     <META HTTP-EQUIV='Content-Security-Policy' CONTENT="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: 'self' w3.org/svg/2000;">
-    <link rel="stylesheet"
-          data-name="vs/editor/editor.main"
-          href="monaco-editor/min/vs/editor/editor.main.css" />
+
 </head>
 <body>
     <style>
-        .boxsizing {
-            box-sizing: border-box;
-            min-width: calc(100% - 32px);
-            max-width: calc(100% - 32px);
-            min-height: 100%;
-        }
-
         .code {
             font-family: Consolas, monospace;
             font-size: 14px;
             white-space: pre;
         }
-
         .resizer {
             background-color: #777777;
             cursor: ew-resize;
@@ -46,6 +37,56 @@
             padding: 8px;
             background-clip: content-box;
         }
+        :root {
+            font-size: 18px;
+        }
+        p {
+            line-height: 1.3em;
+        }
+        li {
+            line-height: 1.3em;
+            margin-block-end: 0.3em;
+        }
+        sup {
+            line-height: 100%;
+            vertical-align: top;
+        }
+        #CBV_root_container {
+            font-size: initial;
+            line-height: initial;
+        }
+        h4 {
+            margin-block-start: 0.5em;
+            margin-block-end: 0.5em;
+        }
+        .keyword {
+            color: #0000ff;
+        }
+        .bracket0 {
+            color: #0431fa;
+        }
+        .bracket1 {
+            color: #319331;
+        }
+        .bracket2 {
+            color: #7b3814;
+        }
+        .number {
+            color: #098658;
+        }
+        .CBV_example {
+            width: 100%;
+            overflow: auto;
+        }
+        dfn {
+            font-weight:bold;
+            font-style:normal;
+        }
+        var {
+            font-weight:normal;
+            font-style:normal;
+            font-family:math;
+        }
     </style>
     <style title="CBV Dark Theme">
         /* based on VS-Dark from Monaco */
@@ -63,12 +104,34 @@
             color: rgb(255, 255, 255);
             background-color: rgb(14, 99, 156);
         }
+        a {
+            color: #4e94ce;
+            text-decoration:none;
+        }
+        a:hover {
+            text-decoration:underline;
+        }
+        .keyword {
+            color: #569cd6;
+        }
+        .bracket0 {
+            color: #ffd700;
+        }
+        .bracket1 {
+            color: #da70d6;
+        }
+        .bracket2 {
+            color: #179fff;
+        }
+        .number {
+            color: #b5cea8;
+        }
     </style>
     <main>
         <article>
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
-                <h1>HLSL Constant Buffer Layout Visualizer</h1>
-                <button id="CBV_enable_button" type="button" style="width: 15em; height: 5em; font-size: larger; margin:auto; display:block;"
+                <h2>HLSL Constant Buffer Layout Visualizer</h2>
+                <button id="CBV_enable_button" type="button" style="width: 17em; height: 6em; font-size: 1.1em; margin:auto; display:block; max-width:100%" disabled
                         onclick="CBV_Initialize(); this.disabled = true; this.textContent = 'Loading...'">Click to Load Visualizer</button>
             </div>
             <div id="CBV_root_container" style="margin: 0px auto;  max-width:100%" hidden>
@@ -137,13 +200,9 @@
         <script>
             var require = { paths: { vs: 'monaco-editor/min/vs' } };
         </script>
-        <!-- NOTE: loaded on demand in code below -->
-        <!--<script src="monaco-editor/min/vs/loader.js"></script>
-        <script src="monaco-editor/min/vs/editor/editor.main.nls.js"></script>
-        <script src="monaco-editor/min/vs/editor/editor.main.js"></script>-->
 
         <script type="module">
-            import { EnableResizer, ParseHLSLAndVisualize, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
+            import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
 
             window.CBV_SetDarkTheme = SetDarkTheme;
 
@@ -173,7 +232,7 @@
                 window.CBV_monaco_editor = CreateMonacoEditor(CBV_editor_container);
 
                 window.CBV_VisualizeCBuffer = () => {
-                    window.CBV_VisualizerObject = ParseHLSLAndVisualize(CBV_monaco_editor, CBV_output_text, CBV_output_svg, GetVisualizerOptions());
+                    window.CBV_VisualizerObject = ParseHLSLAndVisualizeMonaco(CBV_monaco_editor, CBV_output_text, CBV_output_svg, GetVisualizerOptions());
                 }
 
                 window.CBV_monaco_editor.getModel().onDidChangeContent(() => {
@@ -192,26 +251,107 @@
             }
 
             window.CBV_Initialize = () => {
-                const loadScript = (file, callback) => {
-                    var script = document.createElement('script');
+
+                let link = document.createElement('link');
+                link.rel = "stylesheet";
+                link["data-name"] = "vs/editor/editor.main";
+                link.href = "monaco-editor/min/vs/editor/editor.main.css";
+                document.head.appendChild(link);
+
+                const LoadScript = (file, callback) => {
+                    let script = document.createElement('script');
                     script.src = file;
                     if (callback)
                         script.onload = callback;
                     document.body.appendChild(script);
-                }
-                loadScript("monaco-editor/min/vs/loader.js");
-                loadScript("monaco-editor/min/vs/editor/editor.main.nls.js");
-                loadScript("monaco-editor/min/vs/editor/editor.main.js", DelayedInit);
+                };
+
+                // HACK: prevent race condition by loading sequentially
+                LoadScript("monaco-editor/min/vs/loader.js",
+                    () => LoadScript("monaco-editor/min/vs/editor/editor.main.nls.js",
+                        () => LoadScript("monaco-editor/min/vs/editor/editor.main.js", DelayedInit)));
             }
+
+            CBV_enable_button.removeAttribute("disabled"); // only enable the button once the function it calls actually exists
         </script>
 
         <!-- TODO: Write actual article about rules -->
         <article>
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
-                <h1>HLSL Constant Buffer Packing Rules</h1>
+                <h2>HLSL Constant Buffer Packing Rules</h2>
             </div>
-            <div style="margin: 0px auto; width:50em; max-width:100%">
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. In feugiat, velit vitae faucibus ultricies, diam sapien ultrices magna, ut rhoncus sem est non nisi. Sed pretium neque ut arcu egestas iaculis. Praesent vitae pharetra lacus. Nulla id ullamcorper libero, et molestie mauris. Cras non risus arcu. Donec rhoncus magna ut quam varius venenatis. Integer eget facilisis lacus, ac auctor dolor. In finibus leo ut mauris ultrices, in vulputate nisi tempus. Praesent sapien sapien, tristique bibendum sollicitudin quis, bibendum eu ex. Nunc massa sapien, auctor at orci a, mollis semper odio. Suspendisse placerat diam sit amet nisl rhoncus mollis. Mauris dapibus venenatis tortor sit amet lobortis. Nulla gravida magna non nibh ullamcorper, ut lacinia ligula fermentum.</p>
+            <div style="margin: 0px auto; width:60em; max-width:100%">
+                <p>
+                    Constant Buffers in HLSL have rather peculiar rules for how their individual members are laid out in memory.
+                    These rules are very different from those for structures in C and C++ and in fact practically impossible to implement in their type system.
+                    This often leads to a lot of confusion and frustration when the corresponding struct layouts in the CPU and GPU code mismatch and data ends up in the wrong places as a result.
+                    This article will teach you all the packing rules for constant buffers in HLSL for Shader Model 4.0 / Direct3D 10 or newer<a href="#fn:DXC" id="fnref:DXC"><sup>1</sup></a>.
+                </p>
+                <p>
+                    Let's start by defining what <dfn>alignment</dfn> means. Each member of a structure is assigned an offset in bytes from the start of the struct.
+                    We say an offset is "aligned to <var>n</var>" if it is evenly divisible by <var>n</var>.
+                    If something "has an alignment [requirement] of <var>n</var>" then it must always start at an offset aligned to <var>n</var>.
+                    <a href="#fn:alignment" id="fnref:alignment"><sup>2</sup></a>
+                    In order to maintain proper alignment, it may be necessary to add invisible <dfn>padding</dfn> bytes in between struct members.
+                </p>
+                <p>
+                    TODO: This is a work in progress...
+                </p>
+                <!-- NOTE: formatting doesn't matter here, we auto-format when we replace this with the actual visualization -->
+                <div class="CBV_example">
+                    cbuffer TestExample {
+                    float3 a, b;
+                    };
+                </div>
+
+                <!-- TODO: This layout doesn't quite work on mobile -->
+                <template id="CBV_example_template">
+                    <div style="float: left;">
+                        <text class="code" id="CBV_example_input"></text>
+                    </div>
+                    <div style="float: right;">
+                        <div style="float: left; padding-left: 24px; padding-right: 24px; ">
+                            <text id="CBV_example_output_text" class="code">
+                            </text>
+                        </div>
+                        <div style="float: right; padding-left: 24px;">
+                            <svg id="CBV_example_output_svg" class="code">
+                            </svg>
+                        </div>
+                    </div>
+                </template>
+                <script type="module">
+                    import { ParseHLSLAndVisualizeTextNode } from './main.js';
+                    // set up all examples with this template
+                    let examples = document.querySelectorAll(".CBV_example");
+
+                    for (let i = 0; i < examples.length; i++) {
+                        let clone = CBV_example_template.content.cloneNode(true);
+                        let input = clone.querySelector("#CBV_example_input");
+                        let output_text = clone.querySelector("#CBV_example_output_text");
+                        let output_svg = clone.querySelector("#CBV_example_output_svg");
+                        input.id = input.id + i;
+                        output_text.id = output_text.id + i;
+                        output_svg.id = output_svg.id + i;
+                        input.textContent = examples[i].textContent;
+                        examples[i].replaceChildren(clone);
+                        ParseHLSLAndVisualizeTextNode(input, output_text, output_svg, GetVisualizerOptions());
+                    }
+                </script>
+                <hr />
+                <aside>
+                    <h3>Footnotes:</h3>
+                    <ol>
+                        <li id=fn:DXC>
+                            The DXC compiler for D3D12 technically offers a command line flag to disable the "legacy" constant buffer layout rules,
+                            but no graphics driver can actually implement it correctly, so it is unusable. <a href="#fnref:DXC">↩</a>
+                        </li>
+                        <li id=fn:alignment>
+                            Technically alignment would usually refer to <em>memory addresses</em> instead of the byte offset within a struct,
+                            but in most cases it ends up equivalent and we don't even have access to pointers in HLSL anyways. The offset is all that matters for our purposes. <a href="#fnref:alignment">↩</a>
+                        </li>
+                    </ol>
+                </aside>
             </div>
         </article>
     </main>

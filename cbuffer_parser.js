@@ -22,8 +22,9 @@ const tokens_unsupported = [
 //  - this is based on an incomplete understanding of packoffset, make some examples and check how they affect padding
 //  - maybe we can do one pass layouting *only* the forced offset vars and then a second pass doing everything else? like a "shadow struct" overlaid on top?
 
-const TokenType = {
+export const TokenType = {
     Identifier: "identifier", // NOTE: currently not differentiating between numbers and identifiers
+    Number: "number",
     Keywords: {
         CBuffer: "cbuffer", // NOTE: these must exactly match the keywords, at least on the right side
         Struct: "struct",
@@ -79,7 +80,7 @@ export class HLSLError {
     }
 };
 
-class Token {
+export class Token {
     constructor(type, value, line, column) {
         this.type = type;
         this.value = value;
@@ -182,19 +183,29 @@ export class Lexer {
                 }
             }
             else {
-                let identifier = "";
+                let token = "";
                 let start_column = this.column;
-                if (/\a|\w/.test(char)) {
+                let is_number = false;
+                if (/\d/.test(char)) { // number
+                    is_number = true;
                     do {
-                        identifier += char;
+                        token += char;
                         char = this.PeekNext();
-                    } while (/\a|\w/.test(char) && this.Consume()); // aaaaaaaaaaaaaaaaa
+                    } while (/\d/.test(char) && this.Consume()); // aaaaaaaaaaaaaaaaa
                 }
-                if (identifier != "") {
-                    if (GetKeyByValue(TokenType.Keywords, identifier))
-                        tokens.push(this.MakeToken(identifier, identifier, start_column));
+                else if (/\w/.test(char)) { // identifier/keyword
+                    do {
+                        token += char;
+                        char = this.PeekNext();
+                    } while (/\w/.test(char) && this.Consume()); // aaaaaaaaaaaaaaaaa
+                }
+                if (token != "") {
+                    if (is_number)
+                        tokens.push(this.MakeToken(TokenType.Number, token, start_column));
+                    else if (GetKeyByValue(TokenType.Keywords, token))
+                        tokens.push(this.MakeToken(token, token, start_column));
                     else
-                        tokens.push(this.MakeToken(TokenType.Identifier, identifier, start_column));
+                        tokens.push(this.MakeToken(TokenType.Identifier, token, start_column));
                 }
                 else {
                     throw new HLSLError(`invalid or unexpected token ${char}`, this.line, start_column);
@@ -312,7 +323,7 @@ export class Parser {
         let token_str = "";
         if (!token)
             token_str = "end of file";
-        else if (token.type == TokenType.Identifier)
+        else if (token.type == TokenType.Identifier || token.type == TokenType.Number)
             token_str = `${token.type} '${token.value}'`;
         else
             token_str = `${token.type}`;
@@ -334,7 +345,7 @@ export class Parser {
 
         if (token.type != type) {
             let lastToken_str = lastToken ? ` after '${lastToken.value}' (line ${lastToken.line})` : "";
-            if (token.type == TokenType.Identifier)
+            if (token.type == TokenType.Identifier || token.type == TokenType.Number)
                 throw HLSLError.CreateFromToken(`expected ${type}${lastToken_str} but got ${token.type} '${token.value}'`, token);
             else
                 throw HLSLError.CreateFromToken(`expected ${type}${lastToken_str} but got ${token.type}`, token);
@@ -365,8 +376,8 @@ export class Parser {
     MakeAnonymousName() {
         return "_anon" + this.counter++;
     }
-    ParseInteger() { // NOTE: currently not differentiating between numbers and identifiers
-        let str = this.Expect(TokenType.Identifier).value;
+    ParseInteger() {
+        let str = this.Expect(TokenType.Number).value;
         if (String(Number(str)) != str)
             throw HLSLError.CreateFromToken(`invalid integer ${str}`, this.curToken);
         return Number(str);
