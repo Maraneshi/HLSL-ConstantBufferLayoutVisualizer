@@ -248,12 +248,12 @@ class StructLayoutVisualizer {
         this.colors = colors;
         this.dark_theme = dark_theme;
         this.color_index = 0;
-        this.width_per_byte = 24;
-        this.outer_rect_height = 36;
+        this.width_per_byte = 24; // TODO: scale this dynamically based on display width
+        this.outer_rect_height = 36; // maybe this too, to a lesser extent
         this.height_per_vector = this.outer_rect_height + 24;
         this.stroke_width = 2;
         this.init_offset_y = 20;
-        this.init_offset_x = 16;
+        this.init_offset_x = 14;
         this.level = 0;
     }
     NextColor() {
@@ -376,8 +376,17 @@ class StructLayoutVisualizer {
 
     VisualizeLayout(layout) {
         this.svg_node.replaceChildren();
-        this.svg_node.setAttribute("width", 16 * this.width_per_byte + this.init_offset_x * 4);
-        this.svg_node.setAttribute("height", Math.ceil(layout.size / 16) * this.height_per_vector + this.init_offset_y);
+
+        // ensure we have a tight fit, the SVG is already very large
+        if (layout.size < 100)
+            this.init_offset_x = 10;
+        else if (layout.size < 1000)
+            this.init_offset_x = 14;
+        else
+            this.init_offset_x = 18;
+
+        this.svg_node.setAttribute("width", 16 * this.width_per_byte + this.init_offset_x * 2);
+        this.svg_node.setAttribute("height", this.outer_rect_height + (Math.ceil(layout.size / 16) - 1) * this.height_per_vector + this.init_offset_y + this.stroke_width * 2);
         this.CreateOuterRectGroup(layout);
         this.#VisualizeStruct(layout, null);
     }

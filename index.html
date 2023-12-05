@@ -1,16 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- TODO: add OpenGraph/Twitter embed info -->
     <title>HLSL Constant Buffer Packing Rules & Layout Visualizer</title>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-    <meta name="description" content="HLSL Constant Buffer Packing Rules and Layout Visualizer" />
+    <meta name="description" content="Learn HLSL constant buffer packing rules and visualize the layout of your own custom structs!" />
     <meta name="robots" content="index, archive" />
     <meta name="keywords" content="HLSL, DirectX, Direct3D, D3D11, D3D12, DX11, DX12, constant buffer, packing rules, struct packing, struct layout, cbuffer" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:title" content="HLSL Constant Buffer Packing Rules & Layout Visualizer" />
+    <meta property="og:description" content="Learn HLSL constant buffer packing rules and visualize the layout of your own custom structs!" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://maraneshi.github.io/HLSL-ConstantBufferLayoutVisualizer/" />
+    <meta property="og:image" content="https://maraneshi.github.io/HLSL-ConstantBufferLayoutVisualizer/screen3.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="HLSL Constant Buffer Packing Rules & Layout Visualizer" />
+    <meta name="twitter:image" content="https://maraneshi.github.io/HLSL-ConstantBufferLayoutVisualizer/screen3.png" />
+    <meta name="twitter:description" content="Learn HLSL constant buffer packing rules and visualize the layout of your own custom structs!" />
+    <meta name="twitter:creator" content="@maraneshi" />
+    <meta name="twitter:site" content="@maraneshi" />
     <!-- NOTE: I don't know whether it's worth doing this at all. The W3 image source is there for the squiggly lines in Monaco. -->
     <META HTTP-EQUIV='Content-Security-Policy' CONTENT="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: 'self' w3.org/svg/2000;">
-
 </head>
 <body>
     <style>
@@ -18,6 +27,12 @@
             font-family: Consolas, monospace;
             font-size: 14px;
             white-space: pre;
+        }
+        code {
+            font-family: Consolas, monospace;
+            white-space: pre;
+            background-color: #EEEEEE;
+            font-size: 0.92em;
         }
         .resizer {
             background-color: #777777;
@@ -51,6 +66,12 @@
             line-height: 100%;
             vertical-align: top;
         }
+        a {
+            text-decoration:none;
+        }
+        a:hover {
+            text-decoration:underline;
+        }
         #CBV_root_container {
             font-size: initial;
             line-height: initial;
@@ -58,6 +79,13 @@
         h4 {
             margin-block-start: 0.5em;
             margin-block-end: 0.5em;
+        }
+        .rule_definition {
+            color: #2d14ad;
+            padding-top: 16px;
+        }
+        .rule_definition > code {
+            background-color: #d3ebff;
         }
         .keyword {
             color: #0000ff;
@@ -75,8 +103,34 @@
             color: #098658;
         }
         .CBV_example {
-            width: 100%;
+            width: calc(100% - 18px);
+            padding: 8px;
+            border-top: 2px solid #777777;
+            border-bottom: 2px solid #777777;
+            border-radius: 12px;
+        }
+        .CBV_left {
+            flex: auto;
+            margin-left: 8px;
+            margin-right: 8px;
+        }
+        .CBV_middle {
+            flex: auto;
+            margin-left: 8px;
+            /*margin-right: 8px;*/
+            margin-right:16px; /* includes margin from CBV_right, better for mobile layout */
+        }
+        .CBV_right {
+            flex: 1; /* this effectively aligns it to the right side */
+            /*margin-left: 8px;*/
+        }
+        .CBV_example_container {
+            margin-left: -8px; /* strip padding for mobile layout */
+            margin-top: -8px; /* looks more consistent with the above */
+            display: flex;
             overflow: auto;
+            width: calc(100% + 8px);
+            flex-wrap: wrap;
         }
         dfn {
             font-weight:bold;
@@ -86,6 +140,13 @@
             font-weight:normal;
             font-style:normal;
             font-family:math;
+        }
+        body {
+            counter-reset: footnote;
+        }
+        a[href^="#fn"] ::after {
+            counter-increment: footnote;
+            content: counter(footnote)
         }
     </style>
     <style title="CBV Dark Theme">
@@ -104,12 +165,17 @@
             color: rgb(255, 255, 255);
             background-color: rgb(14, 99, 156);
         }
+        code {
+            background-color: #3C3C3C;
+        }
+        .rule_definition {
+            color: #A0A0F4;
+        }
+        .rule_definition > code {
+            background-color: #251960;
+        }
         a {
             color: #4e94ce;
-            text-decoration:none;
-        }
-        a:hover {
-            text-decoration:underline;
         }
         .keyword {
             color: #569cd6;
@@ -130,9 +196,13 @@
     <main>
         <article>
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
-                <h2>HLSL Constant Buffer Layout Visualizer</h2>
-                <button id="CBV_enable_button" type="button" style="width: 17em; height: 6em; font-size: 1.1em; margin:auto; display:block; max-width:100%" disabled
-                        onclick="CBV_Initialize(); this.disabled = true; this.textContent = 'Loading...'">Click to Load Visualizer</button>
+                <h2 style="margin-left:auto; margin-right:auto; width:fit-content">HLSL Constant Buffer Layout Visualizer</h2>
+                <div id="CBV_enable_div" style="background-image: url(screen1a.png); background-position: center top; width: 60em; max-width: 100%; height: 146px; margin-bottom: -24px; background-repeat: no-repeat;">
+                    <button id="CBV_enable_button" type="button" style="width: 17em; height: 6em; font-size: 1.1em; margin:auto; display:block; max-width:100%" disabled
+                            onclick="CBV_Initialize(); this.disabled = true; this.textContent = 'Loading...'">
+                        Click to Load Visualizer
+                    </button>
+                </div>
             </div>
             <div id="CBV_root_container" style="margin: 0px auto;  max-width:100%" hidden>
                 <div style="width: 100%; display: flex; justify-content: center;">
@@ -184,11 +254,11 @@
                     </div>
                     <div class="resizer" id="CBV_resizer_horz"></div>
                     <div style="float: right; display:flex;">
-                        <div style="float: left; flex: 1; flex-basis: max-content; padding-right: 24px">
+                        <div style="float: left; flex: 1; flex-basis: max-content; padding-right: 8px">
                             <text id="CBV_output_text" class="code">
                             </text>
                         </div>
-                        <div style="float: right; flex: 2; flex-basis: max-content; padding-left: 24px;">
+                        <div style="float: right; flex: 2; flex-basis: max-content; padding-left: 8px;">
                             <svg id="CBV_output_svg" class="code">
                             </svg>
                         </div>
@@ -246,8 +316,8 @@
                 //});
 
                 CBV_VisualizeCBuffer();
-                CBV_enable_button.style.display = 'none';
-                CBV_root_container.hidden = false;
+                CBV_enable_div.remove();
+                CBV_root_container.removeAttribute("hidden");
             }
 
             window.CBV_Initialize = () => {
@@ -275,7 +345,6 @@
             CBV_enable_button.removeAttribute("disabled"); // only enable the button once the function it calls actually exists
         </script>
 
-        <!-- TODO: Write actual article about rules -->
         <article>
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
                 <h2>HLSL Constant Buffer Packing Rules</h2>
@@ -285,36 +354,125 @@
                     Constant Buffers in HLSL have rather peculiar rules for how their individual members are laid out in memory.
                     These rules are very different from those for structures in C and C++ and in fact practically impossible to implement in their type system.
                     This often leads to a lot of confusion and frustration when the corresponding struct layouts in the CPU and GPU code mismatch and data ends up in the wrong places as a result.
-                    This article will teach you all the packing rules for constant buffers in HLSL for Shader Model 4.0 / Direct3D 10 or newer<a href="#fn:DXC" id="fnref:DXC"><sup>1</sup></a>.
+                    This article will teach you all the packing rules for constant buffers in HLSL for Direct3D 10 / Shader Model 4.0 or newer<a href="#fn:DXC" id="fnref:DXC"><sup></sup></a>.
                 </p>
                 <p>
+                    <!-- TODO: start with the "more correct" explanation about memory addresses and then point out we only need to care about the offset within the buffer instead of making a giant footnote -->
                     Let's start by defining what <dfn>alignment</dfn> means. Each member of a structure is assigned an offset in bytes from the start of the struct.
-                    We say an offset is "aligned to <var>n</var>" if it is evenly divisible by <var>n</var>.
+                    We say an offset is "aligned to <var>n</var>" if it is evenly divisible by <var>n</var>, or in other words if the offset is an integer multiple of <var>n</var> (<var>n</var> is always a power of two).
                     If something "has an alignment [requirement] of <var>n</var>" then it must always start at an offset aligned to <var>n</var>.
-                    <a href="#fn:alignment" id="fnref:alignment"><sup>2</sup></a>
+                    <a href="#fn:alignment" id="fnref:alignment"><sup></sup></a>
                     In order to maintain proper alignment, it may be necessary to add invisible <dfn>padding</dfn> bytes in between struct members.
                 </p>
-                <p>
-                    TODO: This is a work in progress...
+                <p class="rule_definition">
+                    <b>Rule #1</b>: Basic scalar types such as <code>float</code>, <code>uint</code>, <code>uint16_t</code>, etc. have a "natural" alignment requirement equal to their size (note that <code>bool</code> in HLSL is 4 bytes large).
                 </p>
+                <!-- TODO: find better names for the individual member variables in the examples -->
                 <!-- NOTE: formatting doesn't matter here, we auto-format when we replace this with the actual visualization -->
                 <div class="CBV_example">
-                    cbuffer TestExample {
-                    float3 a, b;
+                    cbuffer ExampleScalarAlignment {
+                    uint16_t u;
+                    float f1;
+                    float f2;
+                    double d;
                     };
                 </div>
+                <p>
+                    As you can see in the example above, there are two bytes of padding added after <code>u</code> in order to align <code>f1</code> properly to 4 bytes.
+                    Similarly, <code>d</code> cannot start at an offset of 12 since that would not be an integer multiple of its size 8, resulting in an additional 4 bytes of padding in between <code>f2</code> and <code>d</code>.
+                </p>
+                <p>
+                    This rule is common across essentially all programming languages because many (most?) processor architectures require the memory address of a load or store instruction to be aligned to the size of the load/store (x86 being one of the biggest exceptions).
+                    Misaligned addresses may result in either a CPU exception, unexpected results (e.g. the processor may round the address down to the nearest aligned one and thus load different data) or in some cases slower execution.
+                </p>
+                <p class="rule_definition">
+                    <b>Rule #1a</b>: Vector types are aligned according to their scalar base type.
+                </p>
+                <div class="CBV_example">
+                    cbuffer ExampleVectorAlignment {
+                    uint16_t u;
+                    float3 f1;
+                    float f2;
+                    int2 i;
+                    };
+                </div>
+                <p>
+                    This is the first rule that might bring some surprise, especially if you are familiar with GLSL uniform buffers, where a <code>vec3</code> would have an alignment of 16. This is not the case in HLSL.
+                    You might also have already encountered some constant buffers that seem to imply different alignment, but we will soon see why that is.
+                    The rules we've covered so far are the only ones concerning <dfn>type alignment</dfn>.
+                    All of the following rules are about <dfn>data alignment</dfn> and I'll explain what I mean by that as we cover more rules and examples.
+                </p>
+                <p class="rule_definition">
+                    <b>Rule #2</b>: A Constant Buffer is arranged conceptually like an array of 16-byte rows.
+                    The individual members of the buffer are packed into these rows and if a member would cross the boundary between two rows, it is forcibly aligned to 16 bytes, pushing it to the next row if it isn't already aligned.
+                </p>
+                <div class="CBV_example">
+                    cbuffer Example16ByteAlignment {
+                    float3 f1;
+                    float3 f2;
+                    uint u;
+                    double4 d;
+                    };
+                </div>
+                <p>
+                    This rule explains why I chose the visual memory layout diagrams of the buffers to be in rows of 16 bytes.
+                    In this example, two <code>float3</code> members next to each other incur 4 bytes of padding in between, but this is <em>not</em> because of their type or any inherent alignment.
+                    The padding results purely from crossing a 16-byte row boundary within the buffer. It is only dependent on the size of a member and its desired starting offset. This is what I mean by <em>data alignment</em>.
+                    <code>f2</code> has a desired offset of <code>12</code>, right at the end of <code>f1</code>, but it is forcibly pushed to start at offset <code>16</code>
+                    because it does not fit entirely into the rest of the first 16-byte row.
+                    The member <code>u</code> squeezed in between <code>f2</code> and <code>d</code> is here to demonstrate again that <code>float3</code> does <em>not</em> have a type alignment of 16,
+                    otherwise its size would have to be 16 too<a href="#fn:aligned-size" id="fnref:aligned-size"><sup></sup></a>.
+                    The <code>double4</code> variable is too large for one row even just by itself, but its starting offset is already aligned to 16 bytes, so it stays where it is.
+                </p>
+                <p>
+                    The above rule is probably the most confusing of them all, because only looking at the offsets may imply an increased <em>type alignment</em> where there is none.
+                    In other languages, <em>data alignment</em> is usually only relevant for allocating entire buffers when you do SIMD work or want cache or page alignment for other reasons.
+                    HLSL is very much the odd one out here with its "array of 16-byte aligned rows" design for constant buffers, so it takes some time to get used to it.
+                    <a href="#fn:cbuffer-history" id="fnref:cbuffer-history"><sup></sup></a>
+                </p>
+                <p class="rule_definition">
+                    <b>Rule #3</b>: TODO
+                </p>
+                <hr />
+                <aside>
+                    <h3>Footnotes:</h3>
+                    <ol>
+                        <li id="fn:DXC">
+                            The DXC compiler for D3D12 technically offers a command line flag to disable the "legacy" constant buffer layout rules,
+                            but no graphics driver can actually interpret the resulting shader correctly, so it is unusable. <a href="#fnref:DXC">↩</a>
+                        </li>
+                        <li id="fn:alignment">
+                            TODO: integrate this footnote into the main text instead.<br />
+                            Technically alignment would usually refer to <em>memory addresses</em> instead of the byte offset within a struct,
+                            but in most cases it ends up equivalent, we don't even have access to pointers in HLSL and constant buffers are always at least 256 byte aligned.
+                            The offset within the buffer is all that matters for our purposes. <a href="#fnref:alignment">↩</a>
+                        </li>
+                        <li id="fn:aligned-size">
+                            In C, C++ and most likely any other programming language, the size of a type must always be an integer multiple of its alignment.
+                            Otherwise, an array of that type could misalign its elements. Note that HLSL has extra rules for arrays and structs which effectively make this irrelevant. Continue reading.
+                            <a href="#fnref:aligned-size">↩</a>
+                        </li>
+                        <li id="fn:cbuffer-history">
+                            The historic reason for this design is that shader constants used to be supplied via individual vector registers, not actual buffer resources.
+                            FXC does actually accept constant buffer struct syntax for D3D9 / Shader Model 3.0 or older,
+                            but each individual member is simply put into one of the <code>float4</code>-sized constant registers as if they were entirely unrelated variables. 
+                            There was no API support beyond setting the value of an individual register either (unless you count the helper library D3DX9, which just sets the registers for you under the hood).
+                            <a href="#fnref:cbuffer-history">↩</a>
+                        </li>
+                    </ol>
+                </aside>
 
-                <!-- TODO: This layout doesn't quite work on mobile -->
+                <!-- TODO: scale down rects on small screens-->
                 <template id="CBV_example_template">
-                    <div style="float: left;">
-                        <text class="code" id="CBV_example_input"></text>
-                    </div>
-                    <div style="float: right;">
-                        <div style="float: left; padding-left: 24px; padding-right: 24px; ">
+                    <div class="CBV_example_container">
+                        <div class="CBV_left">
+                            <text class="code" id="CBV_example_input"></text>
+                        </div>
+                        <div class="CBV_middle">
                             <text id="CBV_example_output_text" class="code">
                             </text>
                         </div>
-                        <div style="float: right; padding-left: 24px;">
+                        <div class="CBV_right">
                             <svg id="CBV_example_output_svg" class="code">
                             </svg>
                         </div>
@@ -324,6 +482,8 @@
                     import { ParseHLSLAndVisualizeTextNode } from './main.js';
                     // set up all examples with this template
                     let examples = document.querySelectorAll(".CBV_example");
+                    let options = GetVisualizerOptions();
+                    options.text_alignment = 24;
 
                     for (let i = 0; i < examples.length; i++) {
                         let clone = CBV_example_template.content.cloneNode(true);
@@ -335,23 +495,9 @@
                         output_svg.id = output_svg.id + i;
                         input.textContent = examples[i].textContent;
                         examples[i].replaceChildren(clone);
-                        ParseHLSLAndVisualizeTextNode(input, output_text, output_svg, GetVisualizerOptions());
+                        ParseHLSLAndVisualizeTextNode(input, output_text, output_svg, options);
                     }
                 </script>
-                <hr />
-                <aside>
-                    <h3>Footnotes:</h3>
-                    <ol>
-                        <li id=fn:DXC>
-                            The DXC compiler for D3D12 technically offers a command line flag to disable the "legacy" constant buffer layout rules,
-                            but no graphics driver can actually implement it correctly, so it is unusable. <a href="#fnref:DXC">↩</a>
-                        </li>
-                        <li id=fn:alignment>
-                            Technically alignment would usually refer to <em>memory addresses</em> instead of the byte offset within a struct,
-                            but in most cases it ends up equivalent and we don't even have access to pointers in HLSL anyways. The offset is all that matters for our purposes. <a href="#fnref:alignment">↩</a>
-                        </li>
-                    </ol>
-                </aside>
             </div>
         </article>
     </main>
