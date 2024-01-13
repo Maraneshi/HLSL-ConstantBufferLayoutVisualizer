@@ -275,7 +275,7 @@
             import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
 
             window.CBV_SetDarkTheme = SetDarkTheme;
-
+            // TODO: add rect width and font size to options, automatically reduce width on mobile browsers (based on screen width?)
             window.GetVisualizerOptions = () => {
                 let options = Object.assign({}, CBufferVisualizerOptionsDefault);
                 options.expanded_arrays = CBV_expanded_arrays.checked;
@@ -343,81 +343,108 @@
             }
 
             CBV_enable_button.removeAttribute("disabled"); // only enable the button once the function it calls actually exists
-        </script>
 
+            const params = new URLSearchParams(window.location.search);
+            if (params.has("visualizer"))
+                window.CBV_Initialize();
+
+        </script>
+        <!-- TODO: add more examples for each rule, possibly under a foldout? -->
         <article>
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
                 <h2>HLSL Constant Buffer Packing Rules</h2>
             </div>
             <div style="margin: 0px auto; width:60em; max-width:100%">
+                <!-- TODO: I vs We vs ??? -->
                 <p>
                     Constant Buffers in HLSL have rather peculiar rules for how their individual members are laid out in memory.
-                    These rules are very different from those for structures in C and C++ and in fact practically impossible to implement in their type system.
+                    These rules are very different from those for structures in C and C++ and very hard to practically impossible to implement in their type system.
                     This often leads to a lot of confusion and frustration when the corresponding struct layouts in the CPU and GPU code mismatch and data ends up in the wrong places as a result.
                     This article will teach you all the packing rules for constant buffers in HLSL for Direct3D 10 / Shader Model 4.0 or newer<a href="#fn:DXC" id="fnref:DXC"><sup></sup></a>.
-                    <!-- TODO: "I" vs "we" vs ???, make it consistent -->
-                    I will compare and contrast with some of the C struct packing rules where appropriate, but explaining those from scratch is beyond the scope of this article.
-                    If you want to play around with your own costant buffers and confirm their memory layout, click the big button above (not supported on mobile browsers).
+                </p>
+                <p>
+                    Note that these rules are <em>not</em> the same as for HLSL structured buffers (which are very similar to C/C++) or GLSL uniform buffers (std140).
+                    I will compare and contrast with those where appropriate, but explaining all the rules for different languages/buffer types from scratch is beyond the scope of this article.
+                    If you want to play around with your own constant buffers and confirm their memory layout, click the big button above (not supported on mobile browsers).
                 </p>
                 <p>
                     Let's start by defining what <dfn>alignment</dfn> means.
-                    We say a memory address is "aligned to <var>n</var>" if it is evenly divisible by <var>n</var>, or in other words if the address is an integer multiple of <var>n</var> (<var>n</var> is always a power of two).
-                    If a type "has an alignment [requirement] of <var>n</var>" then an instance of it must always start at a memory address aligned to <var>n</var>.
+                    We say a memory address is "aligned to <var>n</var>" if it is evenly divisible by <var>n</var>, or in other words if the address is an integer multiple of <var>n</var>.
+                    If a type "has an alignment [requirement] of <var>n</var>" then an instance of it must always start at a memory address aligned to <var>n</var>. The alignment <var>n</var> is always a power of two.
+                </p>
+                <p>
                     In HLSL, we do not have access to memory addresses / pointers, so for our purpose of defining the layout of a constant buffer,
-                    we only need to care about the offset in bytes from the start of the buffer that is assigned to each member<a href="#fn:cbuffer-alignment" id="fnref:cbuffer-alignment"><sup></sup></a>. The definitions of alignment work equivalently for that offset.
-                    In order to maintain proper alignment, it may be necessary to add invisible <dfn>padding</dfn> bytes in between members of a struct / buffer.
+                    we only need to care about the offset in bytes from the start of the buffer that is assigned to each member<a href="#fn:cbuffer-alignment" id="fnref:cbuffer-alignment"><sup></sup></a>.
+                    The definitions of alignment work equivalently for that offset.
+                    In order to maintain proper alignment for each member of a struct/buffer, it may be necessary to add invisible <dfn>padding</dfn> bytes in between them.
                 </p>
                 <p class="rule_definition">
-                    <b>Rule #1</b>: Basic scalar types such as <code>float</code>, <code>uint</code>, <code>uint16_t</code>, etc. have a "natural" alignment requirement equal to their size (note that <code>bool</code> in HLSL is 4 bytes large).
+                    <b>Rule #1</b>: Basic scalar types such as <code>float</code>, <code>uint</code>, <code>uint16_t</code>, etc. have a "natural" alignment requirement equal to their size. This is also called "self-alignment".
+                    <br /><b>Note</b>: <code>bool</code> in HLSL is 4 bytes large!
                 </p>
                 <!-- TODO: find better names for the individual member variables in the examples -->
                 <!-- NOTE: formatting doesn't matter here, we auto-format when we replace this with the actual visualization -->
                 <div class="CBV_example">
                     cbuffer ExampleScalarAlignment {
-                    uint16_t u;
+                    uint16_t smol;
                     float f1;
                     float f2;
-                    double d;
+                    double lorg;
+                    bool four_bytes;
                     };
                 </div>
                 <p>
-                    In the example above, there are two bytes of padding added after <code>u</code> in order to align <code>f1</code> properly to 4 bytes.
-                    Similarly, <code>d</code> cannot start at an offset of 12 since that would not be an integer multiple of its size 8, resulting in an additional 4 bytes of padding in between <code>f2</code> and <code>d</code>.
+                    <i>You can mouse over the colored struct members or the rectangles to highlight the individual elements.</i>
                 </p>
                 <p>
-                    This rule is common across most programming languages and target platforms because many processor architectures require the memory address of a load or store instruction to be aligned to the size of the load/store (x86 being one of the biggest exceptions).
+                    In the example above, there are 2 bytes of padding added after <code>smol</code> in order to align <code>f1</code> properly to a multiple of 4.
+                    Similarly, <code>lorg</code> cannot start at an offset of 12 since that would not be an integer multiple of its size 8, resulting in an additional 4 bytes of padding in between <code>f2</code> and <code>lorg</code>.
+                </p>
+                <p>
+                    It's pretty rare to use the 2 or 8 byte large scalar types in HLSL (especially directly in buffers), but this is in a way the most fundamental alignment rule.
+                    It is common across most programming languages and target platforms because many processor architectures require the memory address of a load or store instruction to be aligned to the size of the load/store (x86 being one of the biggest exceptions).
                     Misaligned addresses may result in either a CPU exception, unexpected results (e.g. the processor may round the address down to the nearest aligned one and thus load different data) or in some cases slower execution.
+                    This is why type self-alignment is very fundamental for program correctness and performance, so we make this our first rule, as it's practically universal.
+                </p>
+                <p>
+                    Tip: If you need to supply a <code>bool</code> to HLSL (in any buffer type), use an actual 4 byte type (e.g. <code>windows.h</code>'s <code>BOOL</code>, <code>uint32_t</code> or your own),
+                    do <em>not</em> use <code>alignas(4) bool</code> or manual padding (e.g. <code>bool b; char[3] pad;</code>) because you do not always have the guarantee that the internal padding bytes are zeroed out,
+                    but they will actually be read by the shader regardless and thus your boolean could produce a <code>true</code> value when it shouldn't!
                 </p>
                 <p class="rule_definition">
-                    <b>Rule #1a</b>: Vector types are aligned according to their scalar base type.
+                    <b>Rule #1a</b>: Vector types are aligned according to their scalar component type.
                 </p>
                 <div class="CBV_example">
                     cbuffer ExampleVectorAlignment {
-                    uint16_t u;
-                    float3 f1;
+                    float f1;
+                    float3 vector;
+                    uint3 other_vector;
                     float f2;
-                    int2 i;
+                    uint16_t smol;
+                    int2 intvec;
                     };
                 </div>
                 <p>
-                    This is the first rule that might bring some surprise, especially if you are familiar with GLSL uniform buffers, where a <code>vec3</code> would have an alignment of 16. This is not the case in HLSL.
-                    You might also have already encountered some constant buffers that seem to imply different alignment, but we will soon see why that is.
+                    This is the first rule that might bring some surprise, especially if you are familiar with GLSL uniform buffers / std140, where a <code>vec3</code> (equivalent to <code>float3</code>) would have an alignment of 16.
+                    This is <em>not</em> the case in HLSL.
+                    The first four members in this example all have an alignment requirement of 4 and they can all be neatly packed together, it also doesn't matter that some of them are <code>float</code>s and some are <code>uint</code>s.
+                    Just like in the first example, we do incur some padding when a smaller type is followed by a larger one, but while the size of <code>intvec</code> is 8, it's alignment requirement is only 4 (based on its scalar type),
+                    so only 2 bytes of padding are needed.
                 </p>
                 <p>
-                    The rules we've covered so far are the only ones concerning <dfn>type alignment</dfn>.
-                    All of the following rules are about <dfn>data alignment</dfn> and I'll explain what I mean by that as we cover more of them.
-                    [TODO: should I call this something else or just not name it at all? I feel like data alignment is too conflated with stuff like cache/page alignment (which I do mention later)
-                    and doesn't describe/separate this special situation well enough]
+                    The rules we've covered so far are the only ones that deal with <dfn>type alignment</dfn> in constant buffers.
+                    All of the following rules are entirely unique to constant buffers and only involve <dfn>variable alignment</dfn>. I'll explain the difference between these two terms as we cover more rules and examples.
                 </p>
                 <p class="rule_definition" id="rule2">
                     <b>Rule #2</b>: A Constant Buffer is arranged conceptually like an array of 16-byte rows.
-                    The individual members of the buffer are packed into these rows and if a member would cross the boundary between two rows, it is forcibly aligned to 16 bytes, pushing it to the next row if it isn't already aligned.
+                    The members of the buffer are packed into these rows and if an individual member would cross the boundary between two rows, its starting offset is forcibly aligned to 16 bytes,
+                    pushing it to the start of the next row if it isn't already aligned.
                 </p>
                 <div class="CBV_example">
                     cbuffer Example16ByteAlignment {
-                    float3 f1;
-                    float3 f2;
-                    uint u;
+                    float3 position;
+                    float3 normal;
+                    uint index;
                     double4 d;
                     };
                 </div>
@@ -425,23 +452,29 @@
                     <i>This rule explains why I chose the visual memory layout diagrams to be in rows of 16 bytes.</i>
                 </p>
                 <p>
-                    In this example, two <code>float3</code> members next to each other incur 4 bytes of padding in between, but this is <em>not</em> because of the inherent alignment requirement of their type (which is 4).
+                    In this example, two <code>float3</code> members next to each other incur 4 bytes of padding in between, but this is <em>not</em> because of the inherent alignment requirement of their type (which is still 4).
                     The padding results purely from crossing a 16-byte row boundary within the buffer. It is only dependent on the size of a member and its desired starting offset,
                     or effectively the <em>sequence</em> of member types in the buffer. It is no longer a pure <em>type alignment</em> rule.
-                    <code>f2</code> has a desired offset of 12, right at the end of <code>f1</code>, but it is forcibly pushed to start at offset 16
+                    <code>normal</code> has a desired offset of 12, right at the end of <code>position</code>, but it is forcibly pushed to start at offset 16
                     because it does not fit entirely into the rest of the first 16-byte row.
-                    The member <code>u</code> squeezed in between <code>f2</code> and <code>d</code> is here to demonstrate again that <code>float3</code> does <em>not</em> have a type alignment of 16,
-                    otherwise its size would have to be increased to 16 too<a href="#fn:aligned-size" id="fnref:aligned-size"><sup></sup></a>.
-                    The <code>double4</code> variable is too large for one row even just by itself, but its starting offset is already aligned to 16 bytes, so it stays where it is.
+                    The member <code>index</code> is packed directly after <code>normal</code> with no padding and is here to demonstrate again that <code>float3</code> does <em>not</em> actually have a type alignment of 16,
+                    otherwise the size of the type itself would have to be padded to 16 as well<a href="#fn:aligned-size" id="fnref:aligned-size"><sup></sup></a>.
+                    The <code>double4</code> variable is too large for one row even just by itself, but its starting offset is already aligned to 16 bytes without any modification, so it stays where it is.
                 </p>
                 <p>
-                    The above rule is probably the most confusing of them all, because only looking at the offsets may imply an increased <em>type alignment</em> where there is none.
-                    In other languages, <em>data alignment</em> is usually only relevant for allocating entire buffers when you do SIMD work or want cache or page alignment for other reasons.
+                    The above rule is probably the most confusing of them all, because only looking at the offsets may imply an increased type alignment where there is none.
+                    In other languages, aligning individual variables is usually only relevant for allocating entire buffers when you do SIMD work or want cache or page alignment for other reasons.
                     HLSL is very much the odd one out with its "array of 16-byte aligned rows" design for constant buffers that affects individual struct members, so it takes some time to get used to it.
                     <a href="#fn:cbuffer-history" id="fnref:cbuffer-history"><sup></sup></a>
                 </p>
+                <p>
+                    I usually recommend manually padding out structs in C++ and equivalently in HLSL for consistency, instead of trying to emulate this behavior with <code>alignas(16)</code>
+                    (which can do either variable or type alignment depending on where you put it). For example, you could put <code>uint32_t pad0;</code> after <code>float3 position;</code>.
+                    Since the 4 byte scalar types and their vectors are a large majority of constant buffer usage (apart from matrices, which we'll get to later), it can help to conceptually think of
+                    your buffer as an array of <code>float4/uint4</code> elements and then assign "slots" for individual variables within those elements, leaving anything that isn't assigned as padding.
+                </p>
                 <p class="rule_definition">
-                    <b>Rule #3</b>: Each element of an array starts a new 16-byte row, i.e. it is forcibly aligned to the next 16 byte boundary.
+                    <b>Rule #3</b>: Each element of an array starts a new 16-byte row, i.e. its starting offset is forcibly aligned to the next 16 byte boundary.
                 </p>
                 <div class="CBV_example">
                     cbuffer ExampleArrays {
@@ -451,23 +484,32 @@
                     };
                 </div>
                 <p>
-                    <i>The individual array elements are expanded in this visualization to help clarify the layout. I hope the resulting syntax is not confusing, please leave a suggestion if you can think of something better.</i>
+                    <i>The individual array elements are expanded in this visualization to help clarify the layout. The resulting syntax isn't a legal struct declaration anymore.</i>
                 <p>
-                    This is one of the big pain points of constant buffers. Arrays are not packed tightly and instead must start a new 16-byte row for each element, leading to huge gaps in between.
-                    This can be worked around by using larger element types (e.g. <code>float4 arr[4]</code> instead of <code>float arr[16]</code>), but then you have to use 2D indexing with division and modulo (e.g. <code>arr[i/4][i%4]</code>).
-                    Note that again we are not increasing the size of the elements to full rows, we are just aligning their starting offset, so the total size of <code>array</code> in this example is 20 bytes
-                    and the member <code>after</code> can slot in right afterwards with no additional padding.
-                    This is another case where trying to emulate these rules with <code>alignas(16)</code> in C/C++ may fail, because <em>type alignment</em> modifies size as well.
+                    This is one of the big pain points of constant buffers. Arrays are not packed tightly and instead must start a new 16-byte row for each element so that array indexing happens on a per-row basis,
+                    leading to potentially huge gaps in between array elements.
+                    This can be worked around by using larger element types (e.g. <code>float4 arr[4]</code> instead of <code>float arr[16]</code>), but then you have to use 2D indexing with division and modulo
+                    (e.g. <code>arr[i / 4][i % 4]</code> or equivalently <code>arr[i >> 2][i &amp; 3]</code>).
+                    Note that as before, we are not increasing the elements' type alignment and not increasing the size of them to full rows, we are just aligning their starting offset as if they were individual variables,
+                    so the total size of <code>array</code> in this example is 20 bytes and the member <code>after</code> can be packed right at the end of the array with no additional padding.
+                </p>
+                <p>
+                    This is annoying to deal with in C++, because if the elements do not have a size divisible by 16, you would have to do away with the array and put them as individual variables with either
+                    added variable alignment via <code>alignas(16)</code> or manual padding before and in between (but not at the end!). You could also increase the size/alignment of the element type
+                    (e.g. making an array of padded structs), but then you have to make sure to add padding after the array on the HLSL side because it only adds it <em>in between</em> the array elements.
+                    None of these options are particularly great.
                 </p>
                 <p class="rule_definition">
-                    <b>Rule #3a</b>: Matrices are laid out equivalently to arrays of column vectors (row vectors for row major matrices). Hence, the array size is the number of columns (rows for row major) and the vector size is the number of rows (columns).
-                    <b>Exception</b>: Matrices with only one column (row for row major) are layout-equivalent to a simple vector, not an array of one vector (i.e. they do not incur the extra 16 byte row alignment).
+                    <b>Rule #3a</b>: Matrices are laid out equivalently to arrays of column vectors (row vectors for row-major matrices). Hence, the array size is the number of columns (rows for row-major) and the vector size is the number of rows (columns).
+                    <br /><b>Exception</b>: Matrices with only one column (row for row-major) are layout-equivalent to a simple vector, not an array of one vector (i.e. they do not incur the extra 16 byte row alignment).
+                    <br /><b>Note</b>: The HLSL type is always <code>typeRxC</code> with <code>R</code> being the number of rows and <code>C</code> being the number of columns
+                    (matches math notation, but reverse order of GLSL/GLM's <code>matCxR</code>) and the default storage order is column-major<a href="#fn:matrix-order" id="fnref:matrix-order"><sup></sup></a>.
                 </p>
                 <div class="CBV_example">
                     cbuffer ExampleMatrices {
                     float2 before;
                     float2x3 mat;
-                    float2x1 mat_small;
+                    float2x1 single_vec_mat;
                     };
                 </div>
                 <p>
@@ -475,12 +517,14 @@
                 </p>
                 <p>
                     Thankfully, matrices just collapse down to the types and rules we've already learned about, with the only slightly tricky part being one-column matrices
-                    (note how <code>mat_small</code> does not need to be 16-byte aligned, though those matrix dimensions do not seem particularly useful to anyone).
+                    (note how <code>single_vec_mat</code> does not need to be 16-byte aligned, though those matrix dimensions do not seem particularly useful).
+                    The matrix <code>mat</code> turns into an array of three <code>float2</code> vectors and we incur the excessive padding cost of arrays just as in the previous example.
+                    It would be worth it to split this into three individual <code>float2 colN</code> variables to save 24 bytes of padding, though I should note that when later reconstructing the matrix in the shader,
+                    HLSL always expects rows in the constructor and not columns, no matter which storage order you chose.
                 </p>
                 <p>
                     <i>
-                        I realize that the term "row" from <a href="#rule2">Rule #2</a> concerning the 16-byte boundaries within the buffer is now overloaded with matrix rows/columns.
-                        I hope this is not too confusing.
+                        I realize that the term "row" from <a href="#rule2">Rule #2</a> concerning the 16-byte boundaries within the buffer is now overloaded with matrix rows/columns, but what can you do.
                     </i>
                 </p>
                 <p class="rule_definition">
@@ -490,7 +534,7 @@
                     cbuffer ExampleInnerStructs {
                     float2 before;
                     struct Inner_t {
-                    float2 start;
+                    float start;
                     double d;
                     float end;
                     } inner;
@@ -498,28 +542,34 @@
                     };
                 </div>
                 <p>
-                    Similar to array elements, structs are always forcibly aligned to start a new buffer row.
+                    Similar to array elements, inner struct variables are always forcibly aligned to start a new buffer row. As a result, we have some padding before the start of the struct in this example.
+                    All the previous rules still apply within the inner struct, in this case the self-alignment requirement for <code>d</code> dictates 4 bytes of padding so it can start at an offset divisible by 8.
                 </p>
                 <p>
                     Of particular note here is that in C, a struct has a type alignment equivalent to the largest alignment requirement of any of its members.
-                    This is to ensure all members are automatically aligned properly when the struct is constructed at an address conforming to the struct's type alignment.
+                    This is to ensure all members are automatically aligned properly when the struct is constructed at an address conforming to the struct's type alignment (also including arrays of structs).
                     If we implemented this example in C, <code>Inner_t</code> would have an alignment of 8 (because of the <code>double</code> member) and thus a size of 24
                     (the size must be a multiple of the type alignment, leading to 4 bytes of padding at the end inside the struct).
                 </p>
                 <p>
-                    This is <em>not</em> the case in HLSL constant buffers. Since the start of any struct is always forcibly aligned to 16 bytes and 16 is larger than any possible type alignment requirement in HLSL,
-                    the concern of having members misaligned is nonexistent and the struct type itself never has any padding before the end to account for some inherent type alignment.
+                    This is <em>not</em> the case in HLSL constant buffers (but it is in structured buffers!). Since the start of any struct is always forcibly aligned to 16 bytes and 16 is larger than any possible
+                    type alignment requirement in HLSL, the concern of having members misaligned is nonexistent and the struct type itself never has any padding before the end to account for some inherent type alignment.
+                    In fact, no type inside a constant buffer can have padding at the start or end within itself that would count towards its size, any padding is always <em>in between</em> variables or array elements.
                     Thus, <code>Inner_t</code> has a size of 20 and <code>after</code> can fit snugly in the remaining 12 bytes of the last buffer row
                     (remember that if it crossed a 16-byte row boundary it would be pushed to start at the next row in accordance with <a href="#rule2">Rule #2</a>).
-                    This also means that this particular struct layout is very hard to implement in the C or C++ type system (I managed with <code>alignas(16) struct __attribute__((packed)) Inner_t</code>,
-                    but I do not recommend doing that, it is brittle and very confusing to read).
                 </p>
                 <p>
-                    Another consequence is that the memory layout within the inner struct is effectively independent of where it is in the outer struct/buffer, because all the rules work in alignments of 16 or smaller,
-                    so the struct layout is the same whether the start offset is 0 or any integer multiple of 16.
+                    This also means that this particular struct layout is very hard to implement in the C or C++ type system. You would first have to align the struct variable (not the type!) and then use your compiler's
+                    equivalent of <code>__attribute__((packed))</code> to forcibly remove the padding at the end of the struct, but then also add back any padding in between the sub-members. This ends up very brittle and confusing to read.
+                    It might be better to massage the HLSL side into something that is easier to translate to C
+                    (I will note again that the use of anything other than 4 byte types is rare in HLSL, but I do need to explain the rules regardless).
                 </p>
                 <p>
-                    The end. We've done it. These are all the rules you need. [TODO: write more here]
+                    Another consequence of this rule is that the memory layout within the inner struct is effectively independent of where it is in the buffer, because all the rules work in alignments of 16 or smaller,
+                    so the struct layout is the same whether the start offset is 0 or any other integer multiple of 16.
+                </p>
+                <p>
+                    The end. We've done it. These are all the rules you need. [TODO: write some sort of outro here]
                 </p>
                 <hr />
                 <aside>
@@ -527,24 +577,34 @@
                     <ol>
                         <li id="fn:DXC">
                             The DXC compiler for D3D12 technically offers a command line flag to disable the "legacy" constant buffer layout rules,
-                            but no graphics driver can actually interpret the resulting shader correctly, so it is unusable. <a href="#fnref:DXC">↩</a>
+                            but no graphics driver can actually interpret the resulting shader correctly, so it is unusable until we get a new shader model update formalizing the specifications and support properly.
+                            <a href="#fnref:DXC">↩</a>
                         </li>
                         <li id="fn:cbuffer-alignment">
                             Constant buffers themselves are always aligned to <em>at least</em> 256 bytes, which is a much larger alignment than we will ever need to consider within it.
                             <a href="#fnref:cbuffer-alignment">↩</a>
                         </li>
                         <li id="fn:aligned-size">
-                            In C, C++ and most likely any other programming language, the size of a type must always be an integer multiple of its alignment.
-                            Otherwise, an array of that type could misalign its elements. Note that HLSL has extra rules for arrays and structs which effectively make this irrelevant. Continue reading.
+                            !!! TODO: I feel like this has to be in the main text to really drive the point home, but I don't quite know how to work it in. <br />
+                            In C-like struct packing, the size of a type must always be an integer multiple of its alignment. Otherwise, an array of that type would misalign its elements and
+                            a struct containing an overaligned type would have its layout depend on its starting address.
+                            Note that HLSL has extra rules for arrays and structs which effectively make this detail irrelevant in constant buffers. Continue reading.
                             <a href="#fnref:aligned-size">↩</a>
                         </li>
                         <li id="fn:cbuffer-history">
-                            The historic reason for this design is that shader constants used to be supplied via individual vector registers, not actual buffer resources.
-                            FXC does actually accept constant buffer struct syntax for D3D9 / Shader Model 3.0 or older,
-                            but each individual member is simply put into one of the <code>float4</code>-sized constant registers as if they were entirely unrelated variables.
+                            The historic reason for this design is that shader constants used to be supplied via individual vector registers, not actual buffer resources, so the 16 byte rows here are the equivalent
+                            of <code>float4</code> vector registers. The point is to pack the members so that a load of a single variable does not cross from one "register" to the other
+                            and indexing is always done on a register-to-register basis too, not <em>within</em> a register (this will bite us hard with arrays later).
+                            FXC does actually accept constant buffer struct syntax for D3D9 / Shader Model 3.0 or older, but each
+                            individual member is simply put into a subsequent <code>float4</code>-sized constant register as if they were entirely unrelated variables, there is no packing at all.
                             There was no API support beyond setting the value of an individual register either (unless you count the helper library D3DX9, which just sets the registers for you under the hood).
-                            This may also be the reason why constant buffers still do not namespace their member variables without adding an inner struct.
+                            This may also be related to why constant buffers declared via the <code>cbuffer</code> keyword still do not namespace their member variables without adding an inner struct.
                             <a href="#fnref:cbuffer-history">↩</a>
+                        </li>
+                        <li id="fn:matrix-order">
+                            If you would like to firmly put your palm on your forehead, see <a target="_blank" href="HLSL matrix storage order.png">this table</a>
+                            on how to (not) set a different default matrix storage order in the two major HLSL compilers.
+                            <a href="#fnref:matrix-order">↩</a>
                         </li>
                     </ol>
                 </aside>
