@@ -20,6 +20,7 @@
     <meta name="twitter:site" content="@maraneshi" />
     <!-- NOTE: I don't know whether it's worth doing this at all. The W3 image source is there for the squiggly lines in Monaco. -->
     <META HTTP-EQUIV='Content-Security-Policy' CONTENT="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: 'self' w3.org/svg/2000;">
+    <meta name="google-site-verification" content="ZJ8tLJVKf9I0aKYguit8CTb2jMFPQLpaJhT1YpQ4eNo" />
 </head>
 <body>
     <style>
@@ -219,31 +220,35 @@
                                 <output id="CBV_auto_parse_delay_value"></output>
                                 <script>CBV_auto_parse_delay_value.value = CBV_auto_parse_delay.value;</script>
                                 <br />
-                                <!-- TODO: Allow these to modify any visualizer on the page -->
                                 <label for="CBV_expanded_arrays">Expanded Arrays</label>
-                                <input type="checkbox" id="CBV_expanded_arrays" onchange="CBV_VisualizerObject?.SetExpandedArrays(this.checked);" checked="checked" />
+                                <input type="checkbox" id="CBV_expanded_arrays" onchange="window.CBV_VisualizerObject?.SetExpandedArrays(this.checked);" checked="checked" />
                                 <br />
                                 <label for="CBV_text_alignment">Offset Text Alignment:</label>
-                                <input type="number" id="CBV_text_alignment" oninput="CBV_VisualizerObject?.SetTextAlignment(this.value);" value="28" min="10" max="200" style="width:3em;" />
+                                <input type="number" id="CBV_text_alignment" oninput="window.CBV_VisualizerObject?.SetTextAlignment(this.value);" value="28" min="10" max="200" style="width:3em;" />
                                 <br />
                                 <label for="CBV_color_shuffle">Shuffle Colors</label>
-                                <input type="checkbox" id="CBV_color_shuffle" onchange="CBV_VisualizerObject?.SetColorShuffle(this.checked);" />
+                                <input type="checkbox" id="CBV_color_shuffle" onchange="window.CBV_VisualizerObject?.SetColorShuffle(this.checked);" />
                                 <br />
                                 <label for="CBV_color_shuffle_subdivisions">Color Shuffle Subdivisions:</label>
-                                <input type="number" id="CBV_color_shuffle_subdivisions" oninput="CBV_VisualizerObject?.SetColorShuffleSubdivisions(this.value);" value="4" min="1" max="10" style="width:2em" />
+                                <input type="number" id="CBV_color_shuffle_subdivisions" oninput="window.CBV_VisualizerObject?.SetColorShuffleSubdivisions(this.value);" value="4" min="1" max="10" style="width:2em" />
                                 <br />
-                                <label for="CBV_color_lightness">Color Lightness:</label>
-                                <input type="range" id="CBV_color_lightness" min="0.01" max="1.0" step="0.01" value="0.60" oninput="CBV_color_lightness_value.value = this.value; CBV_VisualizerObject?.SetColorLightness(this.valueAsNumber);" />
-                                <output id="CBV_color_lightness_value"></output>
-                                <script>CBV_color_lightness_value.value = CBV_color_lightness.value;</script>
-                                <br />
-                                <label for="CBV_color_saturation">Color Saturation:</label>
-                                <input type="range" id="CBV_color_saturation" min="0.01" max="1.0" step="0.01" value="0.60" oninput="CBV_color_saturation_value.value = this.value; CBV_VisualizerObject?.SetColorSaturation(this.valueAsNumber);" />
-                                <output id="CBV_color_saturation_value"></output>
-                                <script>CBV_color_saturation_value.value = CBV_color_saturation.value;</script>
-                                <br />
-                                <label for="CBV_dark_theme">Dark Theme</label>
-                                <input type="checkbox" id="CBV_dark_theme" onchange="CBV_SetDarkTheme(this.checked);" checked="checked" />
+                                <div id="CBV_color_theme_controls_visualizer_container">
+                                    <div id="CBV_color_theme_controls">
+                                        <label for="CBV_color_lightness">Color Lightness:</label>
+                                        <input type="range" id="CBV_color_lightness" min="0.01" max="1.0" step="0.01" value="0.60" oninput="CBV_color_lightness_value.value = this.value; window.CBV_VisualizerObject?.SetColorLightness(this.valueAsNumber); window.CBV_ExampleVisualizers?.SetColorLightness(this.valueAsNumber);" />
+                                        <output id="CBV_color_lightness_value"></output>
+                                        <script>CBV_color_lightness_value.value = CBV_color_lightness.value;</script>
+                                        <br />
+                                        <label for="CBV_color_saturation">Color Saturation:</label>
+                                        <input type="range" id="CBV_color_saturation" min="0.01" max="1.0" step="0.01" value="0.60" oninput="CBV_color_saturation_value.value = this.value; window.CBV_VisualizerObject?.SetColorSaturation(this.valueAsNumber); window.CBV_ExampleVisualizers?.SetColorSaturation(this.valueAsNumber);" />
+                                        <output id="CBV_color_saturation_value"></output>
+                                        <script>CBV_color_saturation_value.value = CBV_color_saturation.value;</script>
+                                        <br />
+                                        <label for="CBV_dark_theme">Dark Theme</label>
+                                        <input type="checkbox" id="CBV_dark_theme" onchange="window.CBV_SetDarkTheme(this.checked);" checked="checked" />
+                                        <!-- TODO: add hue min/max? -->
+                                    </div>
+                                </div>
                                 <br />
                                 <br />
                                 <span>Supported Keywords:</span>
@@ -270,6 +275,16 @@
         <script>
             var require = { paths: { vs: 'monaco-editor/min/vs' } };
         </script>
+
+        <!-- without preload all these scripts are requested serially, incurring network latency every single time -->
+        <link rel="modulepreload" href="main.js" />
+        <link rel="modulepreload" href="hlsl_monaco.js" />
+        <link rel="modulepreload" href="cbuffer_parser.js" />
+        <link rel="modulepreload" href="cbuffer_layout.js" />
+        <link rel="modulepreload" href="cbuffer_visualizer.js" />
+        <!--<link rel="preload" href="monaco-editor/min/vs/editor/editor.main.js" as="script"/>-->
+        <!--<link rel="preload" href="monaco-editor/min/vs/editor/editor.main.nls.js" as="script"/>-->
+        <!--<link rel="preload" href="monaco-editor/min/vs/loader.js" as="script"/>-->
 
         <script type="module">
             import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
@@ -298,29 +313,28 @@
             }
             CBV_keywords_text.append(keywords_str);
 
-            const DelayedInit = () => {
-                window.CBV_monaco_editor = CreateMonacoEditor(CBV_editor_container);
-
-                window.CBV_VisualizeCBuffer = () => {
-                    window.CBV_VisualizerObject = ParseHLSLAndVisualizeMonaco(CBV_monaco_editor, CBV_output_text, CBV_output_svg, GetVisualizerOptions());
-                }
-
-                window.CBV_monaco_editor.getModel().onDidChangeContent(() => {
-                    if (CBV_auto_parse_delay.value != CBV_auto_parse_delay.getAttribute("max")) {
-                        clearTimeout(window.CBV_parse_timer);
-                        window.CBV_parse_timer = setTimeout(CBV_VisualizeCBuffer, CBV_auto_parse_delay.value);
-                    }
-                });
-                //window.CBV_monaco_editor.onDidContentSizeChange(() => {
-                //    CBV_editor_container.style.height = `calc(max(${CBV_monaco_editor.getContentHeight() + 'px'}, ${CBV_editor_container.style.height}))`;
-                //});
-
-                CBV_VisualizeCBuffer();
-                CBV_enable_div.remove();
-                CBV_root_container.removeAttribute("hidden");
-            }
-
             window.CBV_Initialize = () => {
+
+                // first, we preload the data in parallel so we don't incur network latency for every single file
+
+                const Preload = (file, type) => {
+                    let link = document.createElement('link');
+                    link.rel = "preload";
+                    link.href = file;
+                    link.as = type;
+                    if (type == "font" || type == "fetch")
+                        link.setAttribute("crossOrigin", "");
+                    document.head.appendChild(link);
+                };
+                Preload("monaco-editor/min/vs/editor/editor.main.css", "style");
+                Preload("monaco-editor/min/vs/loader.js", "script");
+                Preload("monaco-editor/min/vs/editor/editor.main.nls.js", "script");
+                Preload("monaco-editor/min/vs/editor/editor.main.js", "script");
+                Preload("monaco-editor/min/vs/base/browser/ui/codicons/codicon/codicon.ttf", "font");
+                //Preload("monaco-editor/min/vs/base/worker/workerMain.js", "script"); // this doesn't work for unknown reasons
+                //Preload("monaco-editor/min/vs/base/common/worker/simpleWorker.nls.js", "fetch"); // this doesn't work for unknown reasons
+
+                // then we actually execute the scripts/css
 
                 let link = document.createElement('link');
                 link.rel = "stylesheet";
@@ -336,17 +350,47 @@
                     document.body.appendChild(script);
                 };
 
+                const DelayedInit = () => {
+                    window.CBV_monaco_editor = CreateMonacoEditor(CBV_editor_container);
+
+                    window.CBV_VisualizeCBuffer = () => {
+                        window.CBV_VisualizerObject = ParseHLSLAndVisualizeMonaco(CBV_monaco_editor, CBV_output_text, CBV_output_svg, GetVisualizerOptions());
+                    }
+
+                    window.CBV_monaco_editor.getModel().onDidChangeContent(() => {
+                        if (CBV_auto_parse_delay.value != CBV_auto_parse_delay.getAttribute("max")) {
+                            clearTimeout(window.CBV_parse_timer);
+                            window.CBV_parse_timer = setTimeout(CBV_VisualizeCBuffer, CBV_auto_parse_delay.value);
+                        }
+                    });
+                    //window.CBV_monaco_editor.onDidContentSizeChange(() => {
+                    //    CBV_editor_container.style.height = `calc(max(${CBV_monaco_editor.getContentHeight() + 'px'}, ${CBV_editor_container.style.height}))`;
+                    //});
+
+                    CBV_color_theme_controls_visualizer_container.appendChild(CBV_color_theme_controls);
+                    let text = document.createElement("i");
+                    text.append("If you have trouble reading the examples, color and theme controls are in the big visualizer above.");
+                    CBV_color_theme_controls_inline_container.replaceChildren(text);
+
+                    CBV_VisualizeCBuffer();
+                    CBV_enable_div.remove();
+                    CBV_root_container.removeAttribute("hidden");
+                }
+
                 // HACK: prevent race condition by loading sequentially
                 LoadScript("monaco-editor/min/vs/loader.js",
                     () => LoadScript("monaco-editor/min/vs/editor/editor.main.nls.js",
                         () => LoadScript("monaco-editor/min/vs/editor/editor.main.js", DelayedInit)));
             }
 
+            CBV_color_theme_controls_inline_container.appendChild(CBV_color_theme_controls);
+
             CBV_enable_button.removeAttribute("disabled"); // only enable the button once the function it calls actually exists
 
             const params = new URLSearchParams(window.location.search);
-            if (params.has("visualizer"))
-                window.CBV_Initialize();
+            if (params.has("visualizer")) {
+                CBV_enable_button.click();
+            }
 
         </script>
         <!-- TODO: add more examples for each rule, possibly under a foldout? -->
@@ -365,7 +409,7 @@
                 <p>
                     Note that these rules are <em>not</em> the same as for HLSL structured buffers (which are very similar to C/C++) or GLSL uniform buffers (std140).
                     I will compare and contrast with those where appropriate, but explaining all the rules for different languages/buffer types from scratch is beyond the scope of this article.
-                    If you want to play around with your own constant buffers and confirm their memory layout, click the big button above (not supported on mobile browsers).
+                    If you want to play around with your own constant buffers and confirm their memory layout, click the big button above (code editor not supported on mobile browsers).
                 </p>
                 <p>
                     Let's start by defining what <dfn>alignment</dfn> means.
@@ -377,6 +421,9 @@
                     we only need to care about the offset in bytes from the start of the buffer that is assigned to each member<a href="#fn:cbuffer-alignment" id="fnref:cbuffer-alignment"><sup></sup></a>.
                     The definitions of alignment work equivalently for that offset.
                     In order to maintain proper alignment for each member of a struct/buffer, it may be necessary to add invisible <dfn>padding</dfn> bytes in between them.
+                </p>
+                <p>
+                    <div id="CBV_color_theme_controls_inline_container"><i>If you have trouble reading the examples, here are some controls for the colors and a theme switch:</i><br /></div>
                 </p>
                 <p class="rule_definition">
                     <b>Rule #1</b>: Basic scalar types such as <code>float</code>, <code>uint</code>, <code>uint16_t</code>, etc. have a "natural" alignment requirement equal to their size. This is also called "self-alignment".
@@ -434,6 +481,7 @@
                 <p>
                     The rules we've covered so far are the only ones that deal with <dfn>type alignment</dfn> in constant buffers.
                     All of the following rules are entirely unique to constant buffers and only involve <dfn>variable alignment</dfn>. I'll explain the difference between these two terms as we cover more rules and examples.
+                    !!! TODO: maybe put the "size must be multiple of alignment" footnote explanation right here, even if it's front-loading a bit.
                 </p>
                 <p class="rule_definition" id="rule2">
                     <b>Rule #2</b>: A Constant Buffer is arranged conceptually like an array of 16-byte rows.
@@ -626,11 +674,14 @@
                     </div>
                 </template>
                 <script type="module">
-                    import { ParseHLSLAndVisualizeTextNode } from './main.js';
+                    import { ParseHLSLAndVisualizeTextNode, CBufferVisualizerList } from './main.js';
                     // set up all examples with this template
+                    window.CBV_ExampleVisualizers = new CBufferVisualizerList();
                     let examples = document.querySelectorAll(".CBV_example");
                     let options = GetVisualizerOptions();
                     options.text_alignment = 24;
+                    options.color_shuffle = false;
+                    options.expanded_arrays = true;
 
                     for (let i = 0; i < examples.length; i++) {
                         let clone = CBV_example_template.content.cloneNode(true);
@@ -642,7 +693,7 @@
                         output_svg.id = output_svg.id + i;
                         input.textContent = examples[i].textContent;
                         examples[i].replaceChildren(clone);
-                        ParseHLSLAndVisualizeTextNode(input, output_text, output_svg, options);
+                        window.CBV_ExampleVisualizers.Push(ParseHLSLAndVisualizeTextNode(input, output_text, output_svg, options));
                     }
                 </script>
             </div>

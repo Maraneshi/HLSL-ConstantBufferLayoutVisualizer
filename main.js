@@ -7,22 +7,24 @@ import { Lexer, TokenType } from './cbuffer_parser.js';
 const dark_theme_sheet = document.querySelector('[title="CBV Dark Theme"]');
 function ApplyLightTheme() {
     dark_theme_sheet.disabled = true;
-    monaco.editor.setTheme('vs');
+    window.monaco?.editor.setTheme('vs');
     CBV_color_lightness.value = 0.72;
     CBV_color_lightness_value.value = 0.72;
     CBV_color_saturation.value = 1.0;
     CBV_color_saturation_value.value = 1.0;
     window.CBV_VisualizerObject?.SetDarkTheme(false, CBV_color_lightness.valueAsNumber, CBV_color_saturation.valueAsNumber);
+    window.CBV_ExampleVisualizers?.SetDarkTheme(false, CBV_color_lightness.valueAsNumber, CBV_color_saturation.valueAsNumber);
 }
 
 function ApplyDarkTheme() {
     dark_theme_sheet.disabled = false;
-    monaco.editor.setTheme('vs-dark');
+    window.monaco?.editor.setTheme('vs-dark');
     CBV_color_lightness.value = 0.60;
     CBV_color_lightness_value.value = 0.60;
     CBV_color_saturation.value = 0.60;
     CBV_color_saturation_value.value = 0.60;
     window.CBV_VisualizerObject?.SetDarkTheme(true, CBV_color_lightness.valueAsNumber, CBV_color_saturation.valueAsNumber);
+    window.CBV_ExampleVisualizers?.SetDarkTheme(true, CBV_color_lightness.valueAsNumber, CBV_color_saturation.valueAsNumber);
 }
 
 export function SetDarkTheme(enable) {
@@ -109,6 +111,50 @@ function DoSyntaxHighlighting(input_node) {
             input_node.append('\n' + indent_str);
     }
     window.performance.measure("Syntax Highlighting", { start: start });
+}
+
+export class CBufferVisualizerList {
+    constructor() {
+        this.list = [];
+    }
+    Push(viz) {
+        this.list.push(viz);
+    }
+    SetExpandedArrays(expanded_arrays) {
+        for (let viz of this.list) {
+            viz.SetExpandedArrays(expanded_arrays);
+        }
+    }
+    SetTextAlignment(text_alignment) {
+        for (let viz of this.list) {
+            viz.SetTextAlignment(text_alignment);
+        }
+    }
+    SetColorShuffle(color_shuffle) {
+        for (let viz of this.list) {
+            viz.SetColorShuffle(color_shuffle);
+        }
+    }
+    SetColorShuffleSubdivisions(color_shuffle_subdivisions) {
+        for (let viz of this.list) {
+            viz.SetColorShuffleSubdivisions(color_shuffle_subdivisions);
+        }
+    }
+    SetColorLightness(color_lightness) {
+        for (let viz of this.list) {
+            viz.SetColorLightness(color_lightness);
+        }
+    }
+    SetColorSaturation(color_saturation) {
+        for (let viz of this.list) {
+            viz.SetColorSaturation(color_saturation);
+        }
+    }
+    SetDarkTheme(enable, color_lightness, color_saturation) {
+        for (let viz of this.list) {
+            viz.SetDarkTheme(enable, color_lightness, color_saturation);
+        }
+    }
 }
 
 export function ParseHLSLAndVisualizeTextNode(input_node, out_text, out_svg, options) {
