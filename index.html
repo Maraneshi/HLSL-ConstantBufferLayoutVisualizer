@@ -58,13 +58,15 @@
         }
         p {
             line-height: 1.3em;
+            text-align: justify;
         }
         li {
             line-height: 1.3em;
-            margin-block-end: 0.3em;
+            margin-block-end: 0.5em;
         }
         sup {
             line-height: 100%;
+            font-size:0.89em;
             vertical-align: top;
         }
         a {
@@ -81,9 +83,12 @@
             margin-block-start: 0.5em;
             margin-block-end: 0.5em;
         }
+        h3 {
+            font-size: 1.25em;
+        }
         .rule_definition {
             color: #2d14ad;
-            padding-top: 16px;
+            /*padding-top: 16px;*/
         }
         .rule_definition > code {
             background-color: #d3ebff;
@@ -176,7 +181,7 @@
             background-color: #251960;
         }
         a {
-            color: #4e94ce;
+            color: #4e94de;
         }
         .keyword {
             color: #569cd6;
@@ -215,38 +220,51 @@
                                 <button type="submit">Parse</button>
                                 <br />
                                 <label for="CBV_auto_parse_delay">Auto-Parse Delay:</label>
-                                <input type="range" id="CBV_auto_parse_delay" min="100" max="1500" step="50" value="500"
+                                <input type="range" id="CBV_auto_parse_delay" min="100" max="1500" step="50" value="500" autocomplete="off"
                                        oninput="if (this.value == this.getAttribute('max')) CBV_auto_parse_delay_value.value = 'off'; else CBV_auto_parse_delay_value.value = this.value + 'ms';" />
                                 <output id="CBV_auto_parse_delay_value"></output>
                                 <script>CBV_auto_parse_delay_value.value = CBV_auto_parse_delay.value;</script>
                                 <br />
                                 <label for="CBV_expanded_arrays">Expanded Arrays</label>
-                                <input type="checkbox" id="CBV_expanded_arrays" onchange="window.CBV_VisualizerObject?.SetExpandedArrays(this.checked);" checked="checked" />
+                                <input type="checkbox" id="CBV_expanded_arrays" checked="checked" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetExpandedArrays(this.checked);" />
                                 <br />
                                 <label for="CBV_text_alignment">Offset Text Alignment:</label>
-                                <input type="number" id="CBV_text_alignment" oninput="window.CBV_VisualizerObject?.SetTextAlignment(this.value);" value="28" min="10" max="200" style="width:3em;" />
+                                <input type="number" id="CBV_text_alignment" value="28" min="10" max="200" style="width:3em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextAlignment(this.value);"  />
                                 <br />
                                 <label for="CBV_color_shuffle">Shuffle Colors</label>
-                                <input type="checkbox" id="CBV_color_shuffle" onchange="window.CBV_VisualizerObject?.SetColorShuffle(this.checked);" />
+                                <input type="checkbox" id="CBV_color_shuffle" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetColorShuffle(this.checked);" />
                                 <br />
                                 <label for="CBV_color_shuffle_subdivisions">Color Shuffle Subdivisions:</label>
-                                <input type="number" id="CBV_color_shuffle_subdivisions" oninput="window.CBV_VisualizerObject?.SetColorShuffleSubdivisions(this.value);" value="4" min="1" max="10" style="width:2em" />
+                                <input type="number" id="CBV_color_shuffle_subdivisions" value="4" min="1" max="10" style="width:2em" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetColorShuffleSubdivisions(this.value);" />
                                 <br />
                                 <div id="CBV_color_theme_controls_visualizer_container">
                                     <div id="CBV_color_theme_controls">
                                         <label for="CBV_color_lightness">Color Lightness:</label>
-                                        <input type="range" id="CBV_color_lightness" min="0.01" max="1.0" step="0.01" value="0.60" oninput="CBV_color_lightness_value.value = this.value; window.CBV_VisualizerObject?.SetColorLightness(this.valueAsNumber); window.CBV_ExampleVisualizers?.SetColorLightness(this.valueAsNumber);" />
+                                        <input type="range" id="CBV_color_lightness" min="0.01" max="1.0" step="0.01" value="0.60" autocomplete="off"
+                                               oninput="CBV_color_lightness_value.value = this.value; window.CBV_VisualizerObject?.SetColorLightness(this.valueAsNumber); window.CBV_ExampleVisualizers?.SetColorLightness(this.valueAsNumber);" />
                                         <output id="CBV_color_lightness_value"></output>
                                         <script>CBV_color_lightness_value.value = CBV_color_lightness.value;</script>
                                         <br />
                                         <label for="CBV_color_saturation">Color Saturation:</label>
-                                        <input type="range" id="CBV_color_saturation" min="0.01" max="1.0" step="0.01" value="0.60" oninput="CBV_color_saturation_value.value = this.value; window.CBV_VisualizerObject?.SetColorSaturation(this.valueAsNumber); window.CBV_ExampleVisualizers?.SetColorSaturation(this.valueAsNumber);" />
+                                        <input type="range" id="CBV_color_saturation" min="0.01" max="1.0" step="0.01" value="0.60" autocomplete="off"
+                                               oninput="CBV_color_saturation_value.value = this.value; window.CBV_VisualizerObject?.SetColorSaturation(this.valueAsNumber); window.CBV_ExampleVisualizers?.SetColorSaturation(this.valueAsNumber);" />
                                         <output id="CBV_color_saturation_value"></output>
                                         <script>CBV_color_saturation_value.value = CBV_color_saturation.value;</script>
                                         <br />
+                                        <label for="CBV_color_hue_start">Hue Start:</label>
+                                        <input type="range" id="CBV_color_hue_start" min="0" max="359" step="1" value="290" autocomplete="off"
+                                               oninput="CBV_color_hue_start_value.value = this.value; window.CBV_VisualizerObject?.SetColorHueStart(this.valueAsNumber); window.CBV_ExampleVisualizers?.SetColorHueStart(this.valueAsNumber);" />
+                                        <output id="CBV_color_hue_start_value"></output>
+                                        <script>CBV_color_hue_start_value.value = CBV_color_hue_start.value;</script>
+                                        <br />
+                                        <label for="CBV_color_hue_range">Hue Range:</label>
+                                        <input type="range" id="CBV_color_hue_range" min="0" max="360" step="1" value="360" autocomplete="off"
+                                               oninput="CBV_color_hue_range_value.value = this.value; window.CBV_VisualizerObject?.SetColorHueRange(this.valueAsNumber); window.CBV_ExampleVisualizers?.SetColorHueRange(this.valueAsNumber);" />
+                                        <output id="CBV_color_hue_range_value"></output>
+                                        <script>CBV_color_hue_range_value.value = CBV_color_hue_range.value;</script>
+                                        <br />
                                         <label for="CBV_dark_theme">Dark Theme</label>
-                                        <input type="checkbox" id="CBV_dark_theme" onchange="window.CBV_SetDarkTheme(this.checked);" checked="checked" />
-                                        <!-- TODO: add hue min/max? -->
+                                        <input type="checkbox" id="CBV_dark_theme" autocomplete="off" onchange="window.CBV_SetDarkTheme(this.checked);" checked="checked" />
                                     </div>
                                 </div>
                                 <br />
@@ -299,6 +317,8 @@
                 options.color_shuffle_subdivisions = CBV_color_shuffle_subdivisions.value;
                 options.color_lightness = CBV_color_lightness.valueAsNumber;
                 options.color_saturation = CBV_color_saturation.valueAsNumber;
+                options.color_hue_start = CBV_color_hue_start.valueAsNumber;
+                options.color_hue_range = CBV_color_hue_range.valueAsNumber;
                 options.dark_theme = CBV_dark_theme.checked;
                 return options;
             }
@@ -313,9 +333,38 @@
             }
             CBV_keywords_text.append(keywords_str);
 
+            // function to initialize the custom cbuffer visualizer, used by big button
             window.CBV_Initialize = () => {
 
-                // first, we preload the data in parallel so we don't incur network latency for every single file
+                // actual initialization of the entire visualizer, delayed until after Monaco editor script load
+                const DelayedInit = () => {
+                    window.CBV_monaco_editor = CreateMonacoEditor(CBV_editor_container);
+
+                    window.CBV_VisualizeCBuffer = () => {
+                        window.CBV_VisualizerObject = ParseHLSLAndVisualizeMonaco(CBV_monaco_editor, CBV_output_text, CBV_output_svg, GetVisualizerOptions());
+                    }
+
+                    window.CBV_monaco_editor.getModel().onDidChangeContent(() => {
+                        if (CBV_auto_parse_delay.value != CBV_auto_parse_delay.getAttribute("max")) {
+                            clearTimeout(window.CBV_parse_timer);
+                            window.CBV_parse_timer = setTimeout(CBV_VisualizeCBuffer, CBV_auto_parse_delay.value);
+                        }
+                    });
+                    //window.CBV_monaco_editor.onDidContentSizeChange(() => { // broken
+                    //    CBV_editor_container.style.height = `calc(max(${CBV_monaco_editor.getContentHeight() + 'px'}, ${CBV_editor_container.style.height}))`;
+                    //});
+
+                    CBV_color_theme_controls_visualizer_container.appendChild(CBV_color_theme_controls);
+                    let text = document.createElement("i");
+                    text.append("If you have trouble reading the examples, color and theme controls are in the big visualizer above.");
+                    CBV_color_theme_controls_inline_container.replaceChildren(text);
+
+                    CBV_VisualizeCBuffer();
+                    CBV_enable_div.remove();
+                    CBV_root_container.removeAttribute("hidden");
+                }
+
+                // first, we preload the script/CSS data in parallel so we don't incur network latency for every single file sequentially
 
                 const Preload = (file, type) => {
                     let link = document.createElement('link');
@@ -334,13 +383,8 @@
                 //Preload("monaco-editor/min/vs/base/worker/workerMain.js", "script"); // this doesn't work for unknown reasons
                 //Preload("monaco-editor/min/vs/base/common/worker/simpleWorker.nls.js", "fetch"); // this doesn't work for unknown reasons
 
-                // then we actually execute the scripts/css
 
-                let link = document.createElement('link');
-                link.rel = "stylesheet";
-                link["data-name"] = "vs/editor/editor.main";
-                link.href = "monaco-editor/min/vs/editor/editor.main.css";
-                document.head.appendChild(link);
+                // then we try to actually load/execute the scripts/css
 
                 const LoadScript = (file, callback) => {
                     let script = document.createElement('script');
@@ -350,34 +394,17 @@
                     document.body.appendChild(script);
                 };
 
-                const DelayedInit = () => {
-                    window.CBV_monaco_editor = CreateMonacoEditor(CBV_editor_container);
+                const LoadCSS = (file, data_name) => {
+                    let link = document.createElement('link');
+                    link.rel = "stylesheet";
+                    link["data-name"] = data_name;
+                    link.href = file;
+                    document.head.appendChild(link);
+                };
 
-                    window.CBV_VisualizeCBuffer = () => {
-                        window.CBV_VisualizerObject = ParseHLSLAndVisualizeMonaco(CBV_monaco_editor, CBV_output_text, CBV_output_svg, GetVisualizerOptions());
-                    }
+                LoadCSS("monaco-editor/min/vs/editor/editor.main.css", "vs/editor/editor.main");
 
-                    window.CBV_monaco_editor.getModel().onDidChangeContent(() => {
-                        if (CBV_auto_parse_delay.value != CBV_auto_parse_delay.getAttribute("max")) {
-                            clearTimeout(window.CBV_parse_timer);
-                            window.CBV_parse_timer = setTimeout(CBV_VisualizeCBuffer, CBV_auto_parse_delay.value);
-                        }
-                    });
-                    //window.CBV_monaco_editor.onDidContentSizeChange(() => {
-                    //    CBV_editor_container.style.height = `calc(max(${CBV_monaco_editor.getContentHeight() + 'px'}, ${CBV_editor_container.style.height}))`;
-                    //});
-
-                    CBV_color_theme_controls_visualizer_container.appendChild(CBV_color_theme_controls);
-                    let text = document.createElement("i");
-                    text.append("If you have trouble reading the examples, color and theme controls are in the big visualizer above.");
-                    CBV_color_theme_controls_inline_container.replaceChildren(text);
-
-                    CBV_VisualizeCBuffer();
-                    CBV_enable_div.remove();
-                    CBV_root_container.removeAttribute("hidden");
-                }
-
-                // HACK: prevent race condition by loading sequentially
+                // HACK: prevent race condition by loading/executing sequentially
                 LoadScript("monaco-editor/min/vs/loader.js",
                     () => LoadScript("monaco-editor/min/vs/editor/editor.main.nls.js",
                         () => LoadScript("monaco-editor/min/vs/editor/editor.main.js", DelayedInit)));
@@ -393,13 +420,14 @@
             }
 
         </script>
-        <!-- TODO: add more examples for each rule, possibly under a foldout? -->
+        <!-- TODO: maybe try to find a good default font -->
         <article>
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
                 <h2>HLSL Constant Buffer Packing Rules</h2>
             </div>
             <div style="margin: 0px auto; width:60em; max-width:100%">
                 <!-- TODO: I vs We vs ??? -->
+                <h3 id="Introduction">0. Introduction</h3>
                 <p>
                     Constant Buffers in HLSL have rather peculiar rules for how their individual members are laid out in memory.
                     These rules are very different from those for structures in C and C++ and very hard to practically impossible to implement in their type system.
@@ -407,9 +435,11 @@
                     This article will teach you all the packing rules for constant buffers in HLSL for Direct3D 10 / Shader Model 4.0 or newer<a href="#fn:DXC" id="fnref:DXC"><sup></sup></a>.
                 </p>
                 <p>
-                    Note that these rules are <em>not</em> the same as for HLSL structured buffers (which are very similar to C/C++) or GLSL uniform buffers (std140).
+                    Note that these rules are <em>not</em> the same as for HLSL structured buffers (which are pretty much equal to C) or GLSL uniform buffers (called "std140 layout").
                     I will compare and contrast with those where appropriate, but explaining all the rules for different languages/buffer types from scratch is beyond the scope of this article.
                     If you want to play around with your own constant buffers and confirm their memory layout, click the big button above (code editor not supported on mobile browsers).
+                    There is a similar visualization available for C++ in
+                    <a href="https://devblogs.microsoft.com/visualstudio/size-alignment-and-memory-layout-insights-for-c-classes-structs-and-unions/">Visual Studio 2022 version 17.9</a> (currently in preview as of 18 Jan 2024).
                 </p>
                 <p>
                     Let's start by defining what <dfn>alignment</dfn> means.
@@ -420,16 +450,16 @@
                     In HLSL, we do not have access to memory addresses / pointers, so for our purpose of defining the layout of a constant buffer,
                     we only need to care about the offset in bytes from the start of the buffer that is assigned to each member<a href="#fn:cbuffer-alignment" id="fnref:cbuffer-alignment"><sup></sup></a>.
                     The definitions of alignment work equivalently for that offset.
-                    In order to maintain proper alignment for each member of a struct/buffer, it may be necessary to add invisible <dfn>padding</dfn> bytes in between them.
+                    In order to maintain proper alignment for all members of a struct/buffer, it may be necessary to add invisible <dfn>padding</dfn> bytes in between them.
                 </p>
                 <p>
-                    <div id="CBV_color_theme_controls_inline_container"><i>If you have trouble reading the examples, here are some controls for the colors and a theme switch:</i><br /></div>
+                    <div id="CBV_color_theme_controls_inline_container"><i>If you have trouble reading the examples, here are some controls for the colors and a theme switch for the whole site:</i><br /></div>
                 </p>
-                <p class="rule_definition">
+                <h3 id="Type_Alignment">1. Type Alignment</h3>
+                <p class="rule_definition" id="rule1">
                     <b>Rule #1</b>: Basic scalar types such as <code>float</code>, <code>uint</code>, <code>uint16_t</code>, etc. have a "natural" alignment requirement equal to their size. This is also called "self-alignment".
                     <br /><b>Note</b>: <code>bool</code> in HLSL is 4 bytes large!
                 </p>
-                <!-- TODO: find better names for the individual member variables in the examples -->
                 <!-- NOTE: formatting doesn't matter here, we auto-format when we replace this with the actual visualization -->
                 <div class="CBV_example">
                     cbuffer ExampleScalarAlignment {
@@ -445,29 +475,35 @@
                 </p>
                 <p>
                     In the example above, there are 2 bytes of padding added after <code>smol</code> in order to align <code>f1</code> properly to a multiple of 4.
-                    Similarly, <code>lorg</code> cannot start at an offset of 12 since that would not be an integer multiple of its size 8, resulting in an additional 4 bytes of padding in between <code>f2</code> and <code>lorg</code>.
+                    Similarly, <code>lorg</code> cannot start at an offset of 12 since that would not be an integer multiple of its alignment 8, resulting in an additional 4 bytes of padding in between <code>f2</code> and <code>lorg</code>.
                 </p>
                 <p>
-                    It's pretty rare to use the 2 or 8 byte large scalar types in HLSL (especially directly in buffers), but this is in a way the most fundamental alignment rule.
+                    It's pretty rare to use the 2 or 8 byte large scalar types in HLSL, but this is the most fundamental alignment rule.
                     It is common across most programming languages and target platforms because many processor architectures require the memory address of a load or store instruction to be aligned to the size of the load/store (x86 being one of the biggest exceptions).
                     Misaligned addresses may result in either a CPU exception, unexpected results (e.g. the processor may round the address down to the nearest aligned one and thus load different data) or in some cases slower execution.
                     This is why type self-alignment is very fundamental for program correctness and performance, so we make this our first rule, as it's practically universal.
                 </p>
                 <p>
-                    Tip: If you need to supply a <code>bool</code> to HLSL (in any buffer type), use an actual 4 byte type (e.g. <code>windows.h</code>'s <code>BOOL</code>, <code>uint32_t</code> or your own),
-                    do <em>not</em> use <code>alignas(4) bool</code> or manual padding (e.g. <code>bool b; char[3] pad;</code>) because you do not always have the guarantee that the internal padding bytes are zeroed out,
+                    Tip: If you need to supply a <code>bool</code> to HLSL in any buffer type, use an actual 4 byte type on the CPU code side (e.g. <code>windows.h</code>'s <code>BOOL</code>, <code>uint32_t</code> or your own for C/C++).
+                    Do <em>not</em> use <code>alignas(4) bool</code> or manual padding (e.g. <code>bool b; char[3] pad;</code>) because you do not always have the guarantee that the internal padding bytes are zeroed out,
                     but they will actually be read by the shader regardless and thus your boolean could produce a <code>true</code> value when it shouldn't!
                 </p>
-                <p class="rule_definition">
+                <p>
+                    For the sake of completeness, the minimum-precision types (<code>min10/16*</code>) and <code>half</code> have a storage size (and thus alignment) in memory of 4 bytes by default, even though the driver compiler is
+                    allowed to emit lower precision ALU instructions for the min-precision types (not <code>half</code>, which is directly mapped to <code>float</code>). When you enable native 16-bit type support via the 
+                    <code>-enable-16bit-types</code> command line argument to DXC, all of those types including <code>half</code> turn into actual 16-bit types like <code>(u)int16_t</code> or <code>float16_t</code> and have a corresponding
+                    size and alignment of 2 bytes, as in the examples. There are no types smaller than 4 bytes in HLSL without using DXC and this command line flag.
+                </p>
+                <p class="rule_definition" id="rule1a">
                     <b>Rule #1a</b>: Vector types are aligned according to their scalar component type.
                 </p>
                 <div class="CBV_example">
                     cbuffer ExampleVectorAlignment {
                     float f1;
-                    float3 vector;
-                    uint3 other_vector;
+                    float3 vec;
+                    uint3 other_vec;
                     float f2;
-                    uint16_t smol;
+                    float16_t smol;
                     int2 intvec;
                     };
                 </div>
@@ -481,8 +517,8 @@
                 <p>
                     The rules we've covered so far are the only ones that deal with <dfn>type alignment</dfn> in constant buffers.
                     All of the following rules are entirely unique to constant buffers and only involve <dfn>variable alignment</dfn>. I'll explain the difference between these two terms as we cover more rules and examples.
-                    !!! TODO: maybe put the "size must be multiple of alignment" footnote explanation right here, even if it's front-loading a bit.
                 </p>
+                <h3 id="Buffer_Rows">2. Buffer Rows</h3>
                 <p class="rule_definition" id="rule2">
                     <b>Rule #2</b>: A Constant Buffer is arranged conceptually like an array of 16-byte rows.
                     The members of the buffer are packed into these rows and if an individual member would cross the boundary between two rows, its starting offset is forcibly aligned to 16 bytes,
@@ -501,12 +537,15 @@
                 </p>
                 <p>
                     In this example, two <code>float3</code> members next to each other incur 4 bytes of padding in between, but this is <em>not</em> because of the inherent alignment requirement of their type (which is still 4).
-                    The padding results purely from crossing a 16-byte row boundary within the buffer. It is only dependent on the size of a member and its desired starting offset,
-                    or effectively the <em>sequence</em> of member types in the buffer. It is no longer a pure <em>type alignment</em> rule.
-                    <code>normal</code> has a desired offset of 12, right at the end of <code>position</code>, but it is forcibly pushed to start at offset 16
-                    because it does not fit entirely into the rest of the first 16-byte row.
+                    The padding results purely from crossing a 16-byte row boundary within the buffer. It is only dependent on the size of a member and its initially desired starting offset,
+                    or effectively the <em>sequence</em> of member types in the buffer. This rule does not confer alignment to a type, but to a specific individual member variable and is thus no longer a <em>type alignment</em> rule.
+                    <code>normal</code> has a desired offset of 12, right at the end of <code>position</code>, but it is forcibly pushed to start at offset 16 because it does not fit entirely into the rest of the first 16-byte row.
+                </p>
+                <p>
                     The member <code>index</code> is packed directly after <code>normal</code> with no padding and is here to demonstrate again that <code>float3</code> does <em>not</em> actually have a type alignment of 16,
-                    otherwise the size of the type itself would have to be padded to 16 as well<a href="#fn:aligned-size" id="fnref:aligned-size"><sup></sup></a>.
+                    otherwise the size of the type itself would have to be padded to 16 as well. In C-like struct packing, the size of a type must always be an integer multiple of its alignment.
+                    Otherwise, an array of that type would misalign its elements and a struct containing an overaligned type would have its layout depend on its starting address.
+                    Note that HLSL has extra rules for arrays and structs which we will see later and effectively make this detail irrelevant in constant buffers.
                     The <code>double4</code> variable is too large for one row even just by itself, but its starting offset is already aligned to 16 bytes without any modification, so it stays where it is.
                 </p>
                 <p>
@@ -521,7 +560,12 @@
                     Since the 4 byte scalar types and their vectors are a large majority of constant buffer usage (apart from matrices, which we'll get to later), it can help to conceptually think of
                     your buffer as an array of <code>float4/uint4</code> elements and then assign "slots" for individual variables within those elements, leaving anything that isn't assigned as padding.
                 </p>
-                <p class="rule_definition">
+                <p>
+                    Minimum-precision types (<code>min10/16*</code>) have weird interactions with this rule when native 16-bit types are <em>not</em> enabled. In that case, min-precision types cannot be packed
+                    together with regular fixed-precision types in the same row. My opinion: just don't use them.
+                </p>
+                <h3 id="Arrays_and_Matrices">3. Arrays and Matrices</h3>
+                <p class="rule_definition" id="rule3">
                     <b>Rule #3</b>: Each element of an array starts a new 16-byte row, i.e. its starting offset is forcibly aligned to the next 16 byte boundary.
                 </p>
                 <div class="CBV_example">
@@ -537,7 +581,8 @@
                     This is one of the big pain points of constant buffers. Arrays are not packed tightly and instead must start a new 16-byte row for each element so that array indexing happens on a per-row basis,
                     leading to potentially huge gaps in between array elements.
                     This can be worked around by using larger element types (e.g. <code>float4 arr[4]</code> instead of <code>float arr[16]</code>), but then you have to use 2D indexing with division and modulo
-                    (e.g. <code>arr[i / 4][i % 4]</code> or equivalently <code>arr[i >> 2][i &amp; 3]</code>).
+                    (e.g. <code>arr[i / 4][i % 4]</code> or equivalently <code>arr[i >> 2][i &amp; 3]</code>) which can then <em>hopefully</em> be optimized out once you go through the driver compiler
+                    (unlikely with a value only known at runtime).
                     Note that as before, we are not increasing the elements' type alignment and not increasing the size of them to full rows, we are just aligning their starting offset as if they were individual variables,
                     so the total size of <code>array</code> in this example is 20 bytes and the member <code>after</code> can be packed right at the end of the array with no additional padding.
                 </p>
@@ -547,7 +592,7 @@
                     (e.g. making an array of padded structs), but then you have to make sure to add padding after the array on the HLSL side because it only adds it <em>in between</em> the array elements.
                     None of these options are particularly great.
                 </p>
-                <p class="rule_definition">
+                <p class="rule_definition" id="rule3a">
                     <b>Rule #3a</b>: Matrices are laid out equivalently to arrays of column vectors (row vectors for row-major matrices). Hence, the array size is the number of columns (rows for row-major) and the vector size is the number of rows (columns).
                     <br /><b>Exception</b>: Matrices with only one column (row for row-major) are layout-equivalent to a simple vector, not an array of one vector (i.e. they do not incur the extra 16 byte row alignment).
                     <br /><b>Note</b>: The HLSL type is always <code>typeRxC</code> with <code>R</code> being the number of rows and <code>C</code> being the number of columns
@@ -575,7 +620,8 @@
                         I realize that the term "row" from <a href="#rule2">Rule #2</a> concerning the 16-byte boundaries within the buffer is now overloaded with matrix rows/columns, but what can you do.
                     </i>
                 </p>
-                <p class="rule_definition">
+                <h3 id="Inner_Structs">4. Inner Structs</h3>
+                <p class="rule_definition" id="rule4">
                     <b>Rule #4</b>: Inner/nested structs must start at a 16-byte aligned offset.
                 </p>
                 <div class="CBV_example">
@@ -596,8 +642,8 @@
                 <p>
                     Of particular note here is that in C, a struct has a type alignment equivalent to the largest alignment requirement of any of its members.
                     This is to ensure all members are automatically aligned properly when the struct is constructed at an address conforming to the struct's type alignment (also including arrays of structs).
-                    If we implemented this example in C, <code>Inner_t</code> would have an alignment of 8 (because of the <code>double</code> member) and thus a size of 24
-                    (the size must be a multiple of the type alignment, leading to 4 bytes of padding at the end inside the struct).
+                    If we implemented this example in C, <code>Inner_t</code> would have an alignment of 8 because of the <code>double</code> sub-member and thus a size of 24
+                    (the size must be a multiple of its type alignment, leading to 4 bytes of padding at the end inside the struct).
                 </p>
                 <p>
                     This is <em>not</em> the case in HLSL constant buffers (but it is in structured buffers!). Since the start of any struct is always forcibly aligned to 16 bytes and 16 is larger than any possible
@@ -613,15 +659,33 @@
                     (I will note again that the use of anything other than 4 byte types is rare in HLSL, but I do need to explain the rules regardless).
                 </p>
                 <p>
-                    Another consequence of this rule is that the memory layout within the inner struct is effectively independent of where it is in the buffer, because all the rules work in alignments of 16 or smaller,
+                    Another consequence of this rule is that the memory layout within the inner struct is effectively independent of where it is in the buffer, because all the constant buffer rules work in alignments of 16 or smaller,
                     so the struct layout is the same whether the start offset is 0 or any other integer multiple of 16.
+                    The mentioned "struct alignment equals the largest member alignment" rule for C similarly ensures the same layout independence of starting location, but in a more "fine-grained" way.
                 </p>
+                <h3 id="Sources_and_Methodology">5. Sources and Methodology</h3>
                 <p>
-                    The end. We've done it. These are all the rules you need. [TODO: write some sort of outro here]
+                    I based the rules in this article on the following original sources:
+                </p>
+                <ul>
+                    <li>
+                        <a href="https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules">Packing Rules for Constant Variables (HLSL Reference, Microsoft Learn)</a>
+                    </li>
+
+                    <li>
+                        <a href="https://github.com/microsoft/DirectXShaderCompiler/wiki/Buffer-Packing">Alignment and Buffer Packing (Microsoft DXC GitHub Wiki)</a> <a href="#fn:DXC-packing" id="fnref:DXC-packing"><sup></sup></a>
+                    </li>
+                </ul>
+                <p>
+                    In addition, I checked all the rules and possibly ambiguous cases using DXC and sometimes FXC. DXC is easily accessible via <a href="https://hlsl.godbolt.org/">Compiler Explorer</a>.
+                    To check a buffer's layout on Compiler Explorer, you must first use it in the shader function in some way (any contrived usage will do, it just needs to not be optimized out) and then disable filtering
+                    comments on the compiler output tab. Those comments show buffer layouts, resource bindings and a few other things. Also useful: you can check the actual GPU instructions emitted for AMD GPUs by switching
+                    to the RGA (Radeon GPU Analyzer) compiler (this might not be 100% accurate to live testing due to differences in driver versions and because Compiler Explorer passes the shader to RGA via the SPIR-V
+                    backend of DXC).
                 </p>
                 <hr />
                 <aside>
-                    <h3>Footnotes:</h3>
+                    <h3 id="Footnotes">Footnotes:</h3>
                     <ol>
                         <li id="fn:DXC">
                             The DXC compiler for D3D12 technically offers a command line flag to disable the "legacy" constant buffer layout rules,
@@ -631,13 +695,6 @@
                         <li id="fn:cbuffer-alignment">
                             Constant buffers themselves are always aligned to <em>at least</em> 256 bytes, which is a much larger alignment than we will ever need to consider within it.
                             <a href="#fnref:cbuffer-alignment">↩</a>
-                        </li>
-                        <li id="fn:aligned-size">
-                            !!! TODO: I feel like this has to be in the main text to really drive the point home, but I don't quite know how to work it in. <br />
-                            In C-like struct packing, the size of a type must always be an integer multiple of its alignment. Otherwise, an array of that type would misalign its elements and
-                            a struct containing an overaligned type would have its layout depend on its starting address.
-                            Note that HLSL has extra rules for arrays and structs which effectively make this detail irrelevant in constant buffers. Continue reading.
-                            <a href="#fnref:aligned-size">↩</a>
                         </li>
                         <li id="fn:cbuffer-history">
                             The historic reason for this design is that shader constants used to be supplied via individual vector registers, not actual buffer resources, so the 16 byte rows here are the equivalent
@@ -651,11 +708,22 @@
                         </li>
                         <li id="fn:matrix-order">
                             If you would like to firmly put your palm on your forehead, see <a target="_blank" href="HLSL matrix storage order.png">this table</a>
-                            on how to (not) set a different default matrix storage order in the two major HLSL compilers.
+                            on how to (not) set a different default matrix storage order in the two major HLSL compilers. Basically, adding <code>/Zpr</code> to the command line arguments of FXC changes matrices contained within structs
+                            or constant buffers to row-major, but <em>not</em> structured buffers that directly contain just a matrix (e.g. <code>StructuredBuffer&lt;float4x4&gt;</code>).
+                            The <code>/Zpr</code> flag for DXC however changes <em>all</em> matrices to row-major. To emulate the old FXC behavior, DXC added <code>#pragma pack_matrix(row_major)</code> to put in your code.
+                            This pragma also allows you to complete the confusion by using <code>/Zpr</code> (changes all matrices to row-major) and then also <code>#pragma pack_matrix(column_major)</code> to only change matrices
+                            contained within structs or cbuffers back to column-major.
                             <a href="#fnref:matrix-order">↩</a>
+                        </li>
+                        <li id="fn:DXC-packing">
+                            This page has a small error, it first lists the rules for structured buffers, which include "Structs are aligned by the max of it's member alignments", and then says
+                            "legacy" constant buffer rules apply on top of that, which is not true for this specific rule as demonstrated in the example for <a href="#rule4">Rule #4</a>.
+                            <a href="#fnref:DXC-packing">↩</a>
                         </li>
                     </ol>
                 </aside>
+                <!-- extra screen height so that the footnote links put you in the right place -->
+                <div style="height:calc(100vh - (1.3em * 3));"></div> 
 
                 <!-- TODO: scale down rects on small screens-->
                 <template id="CBV_example_template">
@@ -678,7 +746,7 @@
                     // set up all examples with this template
                     window.CBV_ExampleVisualizers = new CBufferVisualizerList();
                     let examples = document.querySelectorAll(".CBV_example");
-                    let options = GetVisualizerOptions();
+                    let options = window.GetVisualizerOptions();
                     options.text_alignment = 24;
                     options.color_shuffle = false;
                     options.expanded_arrays = true;

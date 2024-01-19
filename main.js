@@ -150,6 +150,16 @@ export class CBufferVisualizerList {
             viz.SetColorSaturation(color_saturation);
         }
     }
+    SetColorHueStart(hue_start) {
+        for (let viz of this.list) {
+            viz.SetColorHueStart(hue_start);
+        }
+    }
+    SetColorHueRange(hue_range) {
+        for (let viz of this.list) {
+            viz.SetColorHueRange(hue_range);
+        }
+    }
     SetDarkTheme(enable, color_lightness, color_saturation) {
         for (let viz of this.list) {
             viz.SetDarkTheme(enable, color_lightness, color_saturation);

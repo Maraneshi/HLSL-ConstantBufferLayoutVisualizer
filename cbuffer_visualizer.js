@@ -1,22 +1,103 @@
 import { StructType, ArrayType, Parser, Lexer, HLSLError } from './cbuffer_parser.js';
 import { CBufferLayoutAlgorithm } from './cbuffer_layout.js';
 
+function DotProduct(v1, v2) {
+    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+}
+
+function Mat3x3MulVec3(mat, vec) {
+    let res = [0, 0, 0];
+    res[0] = DotProduct(mat[0], vec);
+    res[1] = DotProduct(mat[1], vec);
+    res[2] = DotProduct(mat[2], vec);
+    return res;
+}
+
+////////////////////////////////////////////////
+// OkLCH to sRGB color conversion, slightly modified from:
+// CSS Color Module Level 4 spec https://www.w3.org/TR/css-color-4/#color-conversion-code Copyright © 2022 World Wide Web Consortium. https://www.w3.org/copyright/software-license-2023/
+
+function gam_sRGB(RGB) {
+    // convert an array of linear-light sRGB values in the range 0.0-1.0
+    // to gamma corrected form
+    // https://en.wikipedia.org/wiki/SRGB
+    // Extended transfer function:
+    // For negative values, linear portion extends on reflection
+    // of axis, then uses reflected pow below that
+    return RGB.map(function (val) {
+        let sign = val < 0 ? -1 : 1;
+        let abs = Math.abs(val);
+
+        if (abs > 0.0031308) {
+            return sign * (1.055 * Math.pow(abs, 1 / 2.4) - 0.055);
+        }
+
+        return 12.92 * val;
+    });
+}
+
+function XYZ_to_lin_sRGB(XYZ) {
+    // convert XYZ to linear-light sRGB
+
+    var M = [
+        [12831 / 3959, -329 / 214, -1974 / 3959],
+        [-851781 / 878810, 1648619 / 878810, 36519 / 878810],
+        [705 / 12673, -2585 / 12673, 705 / 667],
+    ];
+
+    return Mat3x3MulVec3(M, XYZ);
+}
+function OKLab_to_XYZ(OKLab) {
+    // Given OKLab, convert to XYZ relative to D65
+    var LMStoXYZ = [
+        [1.2268798733741557, -0.5578149965554813, 0.28139105017721583],
+        [-0.04057576262431372, 1.1122868293970594, -0.07171106666151701],
+        [-0.07637294974672142, -0.4214933239627914, 1.5869240244272418]
+    ];
+    var OKLabtoLMS = [
+        [0.99999999845051981432, 0.39633779217376785678, 0.21580375806075880339],
+        [1.0000000088817607767, -0.1055613423236563494, -0.063854174771705903402],
+        [1.0000000546724109177, -0.089484182094965759684, -1.2914855378640917399]
+    ];
+
+    var LMSnl = Mat3x3MulVec3(OKLabtoLMS, OKLab);
+    return Mat3x3MulVec3(LMStoXYZ, LMSnl.map(c => c ** 3));
+}
+
+function OKLCH_to_OKLab(OKLCH) {
+    return [
+        OKLCH[0], // L is still L
+        OKLCH[1] * Math.cos(OKLCH[2] * Math.PI / 180), // a
+        OKLCH[1] * Math.sin(OKLCH[2] * Math.PI / 180)  // b
+    ];
+}
+////////////////////////////////////////////////
+
 class ColorArray {
-    constructor(size, shuffle, shuffle_subdivisions, lightness, saturation) {
-        this.shuffle = shuffle;
-        this.shuffle_subdivisions = shuffle_subdivisions;
-        this.lightness = lightness;
-        this.saturation = saturation;
+    constructor(size, options) {
+        this.shuffle = options.color_shuffle;
+        this.shuffle_subdivisions = options.color_shuffle_subdivisions;
+        this.lightness = options.color_lightness;
+        this.saturation = options.color_saturation;
+        this.hue_start = options.color_hue_start;
+        this.hue_range = options.color_hue_range;
         this.colors = this.GetColorArray(size);
-    }
-    OklabCHToString(l, c, h) {
-        return `oklch(${l} ${c * 100}% ${h})`;
     }
     GetRainbowColor(t) {
         let l = this.lightness;
-        let c = this.saturation;
-        let h = 360 * t - 70;
-        return this.OklabCHToString(l, c, h);
+        let c = this.saturation; // NOTE: our "saturation" value is a percentage, chroma max value is defined to be 0.4
+        let h = this.hue_range * t + this.hue_start;
+        //return `oklch(${l} ${c * 100}% ${h})`;
+        // convert to RGB for old browsers (e.g. Chrome on Win7, old iPhones/Macs)
+        let oklch = [l, c * 0.4, h];
+        let okl = OKLCH_to_OKLab(oklch);
+        let xyz = OKLab_to_XYZ(okl);
+        let rgb = XYZ_to_lin_sRGB(xyz);
+        rgb[0] = Math.max(Math.min(rgb[0], 1.0), 0.0); // just for extra safety
+        rgb[1] = Math.max(Math.min(rgb[1], 1.0), 0.0);
+        rgb[2] = Math.max(Math.min(rgb[2], 1.0), 0.0);
+        let srgb = gam_sRGB(rgb);
+        return `rgb(${srgb[0] * 255}, ${srgb[1] * 255}, ${srgb[2] * 255})`
     }
     GetColorArray(dataLength) {
         let colorArray = [];
@@ -399,6 +480,8 @@ export const CBufferVisualizerOptionsDefault = {
     color_shuffle_subdivisions: 4,
     color_lightness: 0.6,
     color_saturation: 0.6,
+    color_hue_start: 290,
+    color_hue_range: 360,
     dark_theme: true
 };
 
@@ -411,7 +494,7 @@ export class CBufferVisualizer {
     #GetColors() {
         let start = window.performance.now();
         let member_count = LayoutCountStructMembers(this.layouts[0], this.options.expanded_arrays);
-        this.colors = new ColorArray(member_count, this.options.color_shuffle, this.options.color_shuffle_subdivisions, this.options.color_lightness, this.options.color_saturation);
+        this.colors = new ColorArray(member_count, this.options);
         window.performance.measure("GetColors", { start:start });
     }
     #ReEvaluateColors() {
@@ -604,6 +687,14 @@ export class CBufferVisualizer {
     }
     SetColorSaturation(color_saturation) {
         this.options.color_saturation = color_saturation;
+        this.#ReEvaluateColors();
+    }
+    SetColorHueStart(color_hue_start) {
+        this.options.color_hue_start = color_hue_start;
+        this.#ReEvaluateColors();
+    }
+    SetColorHueRange(color_hue_range) {
+        this.options.color_hue_range = color_hue_range;
         this.#ReEvaluateColors();
     }
     SetDarkTheme(enable, color_lightness, color_saturation) {
