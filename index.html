@@ -56,7 +56,7 @@
         :root {
             font-size: 18px;
         }
-        p {
+        #main_article p {
             line-height: 1.3em;
             text-align: justify;
         }
@@ -217,7 +217,11 @@
                             <div id="CBV_editor_container" style="width:100%; min-height:12em"></div>
                             <div class="resizer_vert" id="CBV_resizer_vert"></div>
                             <div>
-                                <button type="submit">Parse</button>
+                                <button type="submit">Parse</button><br />
+                                <button type="button" onclick="window.CBV_Create_Shareable_URL();">Create Shareable URL</button>
+                                <br />
+                                <input type="text" id="CBV_Shareable_URL" readonly style="width:calc(100% - 8px)" />
+                                <button type="button" onclick="navigator.clipboard.writeText(CBV_Shareable_URL.value);">Copy URL</button>
                                 <br />
                                 <label for="CBV_auto_parse_delay">Auto-Parse Delay:</label>
                                 <input type="range" id="CBV_auto_parse_delay" min="100" max="1500" step="50" value="500" autocomplete="off"
@@ -229,7 +233,7 @@
                                 <input type="checkbox" id="CBV_expanded_arrays" checked="checked" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetExpandedArrays(this.checked);" />
                                 <br />
                                 <label for="CBV_text_alignment">Offset Text Alignment:</label>
-                                <input type="number" id="CBV_text_alignment" value="28" min="10" max="200" style="width:3em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextAlignment(this.value);"  />
+                                <input type="number" id="CBV_text_alignment" value="28" min="10" max="200" style="width:3em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextAlignment(this.value);" />
                                 <br />
                                 <label for="CBV_color_shuffle">Shuffle Colors</label>
                                 <input type="checkbox" id="CBV_color_shuffle" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetColorShuffle(this.checked);" />
@@ -267,11 +271,9 @@
                                         <input type="checkbox" id="CBV_dark_theme" autocomplete="off" onchange="window.CBV_SetDarkTheme(this.checked);" checked="checked" />
                                     </div>
                                 </div>
-                                <br />
-                                <br />
-                                <span>Supported Keywords:</span>
-                                <br />
+                                <p>Supported Keywords:<br />
                                 <span id="CBV_keywords_text" class="code" style="white-space:pre-wrap"></span>
+                                </p>
                             </div>
                         </form>
                     </div>
@@ -305,7 +307,13 @@
         <!--<link rel="preload" href="monaco-editor/min/vs/loader.js" as="script"/>-->
 
         <script type="module">
-            import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
+            import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault, Base64ToString, StringToBase64 } from './main.js';
+
+            window.CBV_Create_Shareable_URL = () => {
+                let base64 = StringToBase64(window.CBV_monaco_editor.getValue());
+                let url = location.origin + '/?visualizer=' + encodeURIComponent(base64);
+                CBV_Shareable_URL.value = url;
+            };
 
             window.CBV_SetDarkTheme = SetDarkTheme;
 
@@ -338,7 +346,7 @@
 
                 // actual initialization of the entire visualizer, delayed until after Monaco editor script load
                 const DelayedInit = () => {
-                    window.CBV_monaco_editor = CreateMonacoEditor(CBV_editor_container);
+                    window.CBV_monaco_editor = CreateMonacoEditor(CBV_editor_container, window.CBV_URL_Input_String);
 
                     window.CBV_VisualizeCBuffer = () => {
                         window.CBV_VisualizerObject = ParseHLSLAndVisualizeMonaco(CBV_monaco_editor, CBV_output_text, CBV_output_svg, GetVisualizerOptions());
@@ -416,12 +424,20 @@
 
             const params = new URLSearchParams(window.location.search);
             if (params.has("visualizer")) {
+                let encoded_string = params.get("visualizer");
+                if (encoded_string && encoded_string != "") {
+                    try {
+                        window.CBV_URL_Input_String = Base64ToString(decodeURIComponent(encoded_string));
+                    } catch (e) {
+                        console.log("ERROR: Failed to decode base64 in URL");
+                    }
+                }
                 CBV_enable_button.click();
             }
 
         </script>
         <!-- TODO: maybe try to find a good default font -->
-        <article>
+        <article id="main_article">
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
                 <h2>HLSL Constant Buffer Packing Rules</h2>
             </div>

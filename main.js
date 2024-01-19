@@ -34,13 +34,29 @@ export function SetDarkTheme(enable) {
         ApplyLightTheme();
 }
 
-export function CreateMonacoEditor(parent) {
+export function Base64ToBytes(base64) {
+    const binString = atob(base64);
+    return Uint8Array.from(binString, (m) => m.codePointAt(0));
+}
+export function BytesToBase64(bytes) {
+    const binString = String.fromCodePoint(...bytes);
+    return btoa(binString);
+}
+
+export function Base64ToString(base64) {
+    return new TextDecoder().decode(Base64ToBytes(base64));
+}
+export function StringToBase64(string) {
+    return BytesToBase64(new TextEncoder().encode(string));
+}
+
+export function CreateMonacoEditor(parent, input_string) {
     monaco.languages.register({ id: "hlsl" });
     monaco.languages.setMonarchTokensProvider('hlsl', hlsl_lang_def);
     monaco.languages.setLanguageConfiguration('hlsl', hlsl_lang_config);
 
     const editor = monaco.editor.create(parent, {
-        value: `struct Test {
+        value: input_string ? input_string : `struct Test {
     float a, b;
 };
 
