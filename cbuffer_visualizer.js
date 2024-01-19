@@ -322,15 +322,15 @@ function ApplyThemeInnerRect(rect, text, dark_theme, level) {
 }
 
 class StructLayoutVisualizer {
-    constructor(svg_node, text_node, expanded_arrays, dark_theme, colors) {
+    constructor(svg_node, text_node, colors, options) {
         this.text_node = text_node;
         this.svg_node = svg_node;
-        this.expanded_arrays = expanded_arrays;
+        this.expanded_arrays = options.expanded_arrays;
         this.colors = colors;
-        this.dark_theme = dark_theme;
+        this.dark_theme = options.dark_theme;
         this.color_index = 0;
-        this.width_per_byte = 24; // TODO: scale this dynamically based on display width
-        this.outer_rect_height = 36; // maybe this too, to a lesser extent
+        this.width_per_byte = options.svg_width_per_byte;
+        this.outer_rect_height = options.svg_outer_rect_height;
         this.height_per_vector = this.outer_rect_height + 24;
         this.stroke_width = 2;
         this.init_offset_y = 20;
@@ -482,6 +482,8 @@ export const CBufferVisualizerOptionsDefault = {
     color_saturation: 0.6,
     color_hue_start: 290,
     color_hue_range: 360,
+    svg_width_per_byte: 24,
+    svg_outer_rect_height: 36,
     dark_theme: true
 };
 
@@ -545,7 +547,7 @@ export class CBufferVisualizer {
     }
     #DoColoredRects() {
         let start = window.performance.now();
-        let viz = new StructLayoutVisualizer(this.out_svg, this.out_text, this.options.expanded_arrays, this.options.dark_theme, this.colors);
+        let viz = new StructLayoutVisualizer(this.out_svg, this.out_text, this.colors, this.options);
         viz.VisualizeLayout(this.layouts[0]);
         window.performance.measure("DoColoredRects", { start:start });
     }
@@ -671,6 +673,12 @@ export class CBufferVisualizer {
         this.options.text_alignment = text_alignment;
         this.#RemoveEventListeners();
         this.#DoColoredText();
+        this.#AddEventListeners();
+    }
+    SetSVGWidthPerByte(svg_width_per_byte) {
+        this.options.svg_width_per_byte = svg_width_per_byte;
+        this.#RemoveEventListeners();
+        this.#DoColoredRects();
         this.#AddEventListeners();
     }
     SetColorShuffle(color_shuffle) {

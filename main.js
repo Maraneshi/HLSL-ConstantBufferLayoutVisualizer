@@ -130,6 +130,13 @@ export class CBufferVisualizerList {
             viz.SetTextAlignment(text_alignment);
         }
     }
+    SetSVGWidthPerByte(svg_width_per_byte) {
+        if (svg_width_per_byte != this.list[0].options.svg_width_per_byte) {
+            for (let viz of this.list) {
+                viz.SetSVGWidthPerByte(svg_width_per_byte);
+            }
+        }
+    }
     SetColorShuffle(color_shuffle) {
         for (let viz of this.list) {
             viz.SetColorShuffle(color_shuffle);

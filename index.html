@@ -308,7 +308,7 @@
             import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
 
             window.CBV_SetDarkTheme = SetDarkTheme;
-            // TODO: add rect width and font size to options, automatically reduce width on mobile browsers (based on screen width?)
+
             window.GetVisualizerOptions = () => {
                 let options = Object.assign({}, CBufferVisualizerOptionsDefault);
                 options.expanded_arrays = CBV_expanded_arrays.checked;
@@ -525,7 +525,7 @@
                     pushing it to the start of the next row if it isn't already aligned.
                 </p>
                 <div class="CBV_example">
-                    cbuffer Example16ByteAlignment {
+                    cbuffer ExampleBufferRows {
                     float3 position;
                     float3 normal;
                     uint index;
@@ -602,7 +602,7 @@
                     cbuffer ExampleMatrices {
                     float2 before;
                     float2x3 mat;
-                    float2x1 single_vec_mat;
+                    float2x1 smol_mat;
                     };
                 </div>
                 <p>
@@ -610,7 +610,7 @@
                 </p>
                 <p>
                     Thankfully, matrices just collapse down to the types and rules we've already learned about, with the only slightly tricky part being one-column matrices
-                    (note how <code>single_vec_mat</code> does not need to be 16-byte aligned, though those matrix dimensions do not seem particularly useful).
+                    (note how <code>smol_mat</code> does not need to be 16-byte aligned, though those matrix dimensions do not seem particularly useful).
                     The matrix <code>mat</code> turns into an array of three <code>float2</code> vectors and we incur the excessive padding cost of arrays just as in the previous example.
                     It would be worth it to split this into three individual <code>float2 colN</code> variables to save 24 bytes of padding, though I should note that when later reconstructing the matrix in the shader,
                     HLSL always expects rows in the constructor and not columns, no matter which storage order you chose.
@@ -725,7 +725,6 @@
                 <!-- extra screen height so that the footnote links put you in the right place -->
                 <div style="height:calc(100vh - (1.3em * 3));"></div> 
 
-                <!-- TODO: scale down rects on small screens-->
                 <template id="CBV_example_template">
                     <div class="CBV_example_container">
                         <div class="CBV_left">
@@ -741,16 +740,32 @@
                         </div>
                     </div>
                 </template>
+
                 <script type="module">
-                    import { ParseHLSLAndVisualizeTextNode, CBufferVisualizerList } from './main.js';
-                    // set up all examples with this template
+                    import { ParseHLSLAndVisualizeTextNode, CBufferVisualizerList, CBufferVisualizerOptionsDefault } from './main.js';
+
+                    // scale down SVG rects on very narrow screens
+                    const GetRectScale = () => {
+                        let example = document.querySelector(".CBV_example");
+                        let container_width = parseFloat(window.getComputedStyle(example).width) - 16 /* padding */;
+                        let default_rect_width = 16 * CBufferVisualizerOptionsDefault.svg_width_per_byte;
+                        let rect_scale = Math.max(Math.min(container_width / default_rect_width, 1.0), 0.75);
+                        return rect_scale;
+                    };
+
+                    window.addEventListener("resize", () => {
+                        window.CBV_ExampleVisualizers?.SetSVGWidthPerByte(GetRectScale() * CBufferVisualizerOptionsDefault.svg_width_per_byte);
+                    }, { passive: true });
+
                     window.CBV_ExampleVisualizers = new CBufferVisualizerList();
                     let examples = document.querySelectorAll(".CBV_example");
                     let options = window.GetVisualizerOptions();
-                    options.text_alignment = 24;
+                    options.text_alignment = 22;
                     options.color_shuffle = false;
                     options.expanded_arrays = true;
+                    options.svg_width_per_byte *= GetRectScale();
 
+                    // set up all examples with the template
                     for (let i = 0; i < examples.length; i++) {
                         let clone = CBV_example_template.content.cloneNode(true);
                         let input = clone.querySelector("#CBV_example_input");
@@ -763,6 +778,7 @@
                         examples[i].replaceChildren(clone);
                         window.CBV_ExampleVisualizers.Push(ParseHLSLAndVisualizeTextNode(input, output_text, output_svg, options));
                     }
+
                 </script>
             </div>
         </article>

@@ -29,7 +29,7 @@ export class CBufferLayoutMember extends MemberVariable {
             this.totalSubmemberCount++;
     }
 }
-
+// TODO: we could easily make a layout algorithm for StructuredBuffers
 export class CBufferLayoutAlgorithm {
     constructor(cbuffers) {
         this.cbuffers = cbuffers;
