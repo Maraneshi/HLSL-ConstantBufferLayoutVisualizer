@@ -432,7 +432,7 @@
                     Constant Buffers in HLSL have rather peculiar rules for how their individual members are laid out in memory.
                     These rules are very different from those for structures in C and C++ and very hard to practically impossible to implement in their type system.
                     This often leads to a lot of confusion and frustration when the corresponding struct layouts in the CPU and GPU code mismatch and data ends up in the wrong places as a result.
-                    This article will teach you all the packing rules for constant buffers in HLSL for Direct3D 10 / Shader Model 4.0 or newer<a href="#fn:DXC" id="fnref:DXC"><sup></sup></a>.
+                    This article will teach you all the packing rules for constant buffers in HLSL for Direct3D 10 / Shader Model 4.0 or newer. <a href="#fn:DXC" id="fnref:DXC"><sup></sup></a>
                 </p>
                 <p>
                     Note that these rules are <em>not</em> the same as for HLSL structured buffers (which are pretty much equal to C) or GLSL uniform buffers (called "std140 layout").
@@ -448,7 +448,7 @@
                 </p>
                 <p>
                     In HLSL, we do not have access to memory addresses / pointers, so for our purpose of defining the layout of a constant buffer,
-                    we only need to care about the offset in bytes from the start of the buffer that is assigned to each member<a href="#fn:cbuffer-alignment" id="fnref:cbuffer-alignment"><sup></sup></a>.
+                    we only need to care about the offset in bytes from the start of the buffer that is assigned to each member. <a href="#fn:cbuffer-alignment" id="fnref:cbuffer-alignment"><sup></sup></a>
                     The definitions of alignment work equivalently for that offset.
                     In order to maintain proper alignment for all members of a struct/buffer, it may be necessary to add invisible <dfn>padding</dfn> bytes in between them.
                 </p>
@@ -492,7 +492,7 @@
                     For the sake of completeness, the minimum-precision types (<code>min10/16*</code>) and <code>half</code> have a storage size (and thus alignment) in memory of 4 bytes by default, even though the driver compiler is
                     allowed to emit lower precision ALU instructions for the min-precision types (not <code>half</code>, which is directly mapped to <code>float</code>). When you enable native 16-bit type support via the 
                     <code>-enable-16bit-types</code> command line argument to DXC, all of those types including <code>half</code> turn into actual 16-bit types like <code>(u)int16_t</code> or <code>float16_t</code> and have a corresponding
-                    size and alignment of 2 bytes, as in the examples. There are no types smaller than 4 bytes in HLSL without using DXC and this command line flag.
+                    size and alignment of 2 bytes, as in the examples. There are no types smaller than 4 bytes in HLSL without using DXC and this command line flag. <a href="#fn:16-bit-types" id="fnref:16-bit-types"><sup></sup></a>
                 </p>
                 <p class="rule_definition" id="rule1a">
                     <b>Rule #1a</b>: Vector types are aligned according to their scalar component type.
@@ -596,7 +596,7 @@
                     <b>Rule #3a</b>: Matrices are laid out equivalently to arrays of column vectors (row vectors for row-major matrices). Hence, the array size is the number of columns (rows for row-major) and the vector size is the number of rows (columns).
                     <br /><b>Exception</b>: Matrices with only one column (row for row-major) are layout-equivalent to a simple vector, not an array of one vector (i.e. they do not incur the extra 16 byte row alignment).
                     <br /><b>Note</b>: The HLSL type is always <code>typeRxC</code> with <code>R</code> being the number of rows and <code>C</code> being the number of columns
-                    (matches math notation, but reverse order of GLSL/GLM's <code>matCxR</code>) and the default storage order is column-major<a href="#fn:matrix-order" id="fnref:matrix-order"><sup></sup></a>.
+                    (matches math notation, but reverse order of GLSL/GLM's <code>matCxR</code>) and the default storage order is column-major. <a href="#fn:matrix-order" id="fnref:matrix-order"><sup></sup></a>
                 </p>
                 <div class="CBV_example">
                     cbuffer ExampleMatrices {
@@ -695,6 +695,10 @@
                         <li id="fn:cbuffer-alignment">
                             Constant buffers themselves are always aligned to <em>at least</em> 256 bytes, which is a much larger alignment than we will ever need to consider within it.
                             <a href="#fnref:cbuffer-alignment">↩</a>
+                        </li>
+                        <li id="fn:16-bit-types">
+                            There is a full table of scalar types and what they map to depending on command line flags available <a href="https://github.com/microsoft/DirectXShaderCompiler/wiki/16-Bit-Scalar-Types">here</a>.
+                            <a href="#fnref:16-bit-types">↩</a>
                         </li>
                         <li id="fn:cbuffer-history">
                             The historic reason for this design is that shader constants used to be supplied via individual vector registers, not actual buffer resources, so the 16 byte rows here are the equivalent
