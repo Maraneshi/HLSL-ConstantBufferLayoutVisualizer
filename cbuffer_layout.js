@@ -7,7 +7,6 @@ export class CBufferLayoutMember extends MemberVariable {
         this.submembers = [];
         this.size = size;
         this.totalSubmemberCount = 0;
-        this.isCBuffer = false;
         this.padding = 0;
     }
     PushSubmember(m) {
