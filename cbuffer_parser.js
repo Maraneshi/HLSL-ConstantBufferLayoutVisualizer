@@ -8,7 +8,7 @@ const typenames_unsupported = [
     "min12int", "min16int", "min16uint", "min10float", "min16float", "half"
 ];
 const keywords_unsupported = [ // TODO: support these keywords
-    "typedef", "define", "packoffset", "register", "uniform", "ConstantBuffer", "pragma", "pack_matrix"
+    "typedef", "define", "packoffset", "register", "uniform", "pragma", "pack_matrix"
 ];
 const tokens_unsupported = [
     '(', ')', '#', ':'
@@ -30,12 +30,12 @@ export const TokenType = {
         Struct: "struct",
         Column_Major: "column_major",
         Row_Major: "row_major",
+        ConstantBuffer: "ConstantBuffer",
         //    Typedef: "typedef",
         //    Define: "define",
         //    PackOffset: "packoffset",
         //    Register: "register",
         //    Uniform: "uniform",
-        //    ConstantBuffer: "ConstantBuffer",
         //    Pragma: "pragma",
         //    Pack_Matrix: "pack_matrix"
     },
@@ -233,22 +233,25 @@ export class StructType {
 };
 
 export class ArrayType {
-    constructor(elementType, arraySize) {
+    constructor(elementType, arraySize, created_from_matrix = false) {
         this.elementType = elementType;
         this.arraySize = arraySize;
         this.name = `${elementType.name}[${arraySize}]`;
+        this.created_from_matrix = created_from_matrix;
     }
 };
+
 export class BuiltinType {
-    constructor(name, elementsize, alignment, vectorsize) {
+    constructor(name, elementsize, alignment, vectorsize, created_from_matrix = false) {
         this.name = name;
         this.elementsize = elementsize;
         this.alignment = alignment;
         this.vectorsize = (vectorsize == undefined) ? 1 : vectorsize;
+        this.created_from_matrix = created_from_matrix;
     }
-    static Create(type, vectorsize) {
+    static Create(type, vectorsize, created_from_matrix = false) {
         let t = types_builtin[type];
-        return new BuiltinType(vectorsize == 1 ? t.name : t.name + vectorsize, t.elementsize, t.alignment, vectorsize);
+        return new BuiltinType(vectorsize == 1 ? t.name : t.name + vectorsize, t.elementsize, t.alignment, vectorsize, created_from_matrix);
     }
 };
 
@@ -280,7 +283,7 @@ export class Parser {
         this.curToken = null;
         this.nextToken = this.tokens[this.index + 1] ?? null;
         this.cbuffers = [];
-        this.structs = [];
+        this.struct_declarations = [];
         this.counter = 0;
     }
     GetNext() {
@@ -388,24 +391,48 @@ export class Parser {
     }
     ParseFile() {
         do {
-            let type_token = this.ExpectAny(TokenType.Keywords.Struct, TokenType.Keywords.CBuffer);
-            let type_declaration = this.ParseStructTypeDeclaration();
+            let type_token = this.ExpectAny(TokenType.Keywords.Struct, TokenType.Keywords.CBuffer, TokenType.Keywords.ConstantBuffer);
 
-            let variable_name_token = this.Accept(TokenType.Identifier);
+            let type_declaration = null;
+            let variable_name_token = null;
+
+            // ConstantBuffer<type>, where type must be a previously defined struct (not inline, not a scalar/vector, etc.)
+            if (type_token.type == TokenType.Keywords.ConstantBuffer) {
+                this.Expect('<');
+                let name = this.Expect(TokenType.Identifier).value;
+                type_declaration = this.struct_declarations.find((element) => element.name == name);
+                if (!type_declaration)
+                    throw HLSLError.CreateFromToken(`cannot find type named '${this.curToken.value}'`, this.curToken);
+                    
+                this.Expect('>');
+                variable_name_token = this.Expect(TokenType.Identifier);
+
+                // accept arrays of ConstantBuffers, but ignore them
+                while (this.Accept('[')) {
+                    this.ParseInteger();
+                    this.Expect(']');
+                }
+            }
+            else { // struct or cbuffer
+                type_declaration = this.ParseStructTypeDeclaration(true, type_token.type == TokenType.Keywords.CBuffer);
+                variable_name_token = this.Accept(TokenType.Identifier);
+            }
+
             this.Expect(';');
-            // treat top level declarations as "member variables" of the global scope so we can get their variable names
-            let global_member = new MemberVariable(type_declaration, variable_name_token ? variable_name_token.value : "");
-            if (type_token.type == TokenType.Keywords.CBuffer) {
+
+            if (type_token.type == TokenType.Keywords.CBuffer || type_token.type == TokenType.Keywords.ConstantBuffer) {
+                // treat top level declarations as "member variables" of the global scope so we can get their variable names
+                let global_member = new MemberVariable(type_declaration, variable_name_token ? variable_name_token.value : "");
                 global_member.isCBuffer = true;
                 this.cbuffers.push(global_member);
             }
-            else
-                this.structs.push(global_member);
+
         } while (this.TokensLeft() > 0);
+
         return this.cbuffers;
     }
-    ParseStructTypeDeclaration() {
-        let type_name = this.Accept(TokenType.Identifier)?.value; // TODO: need to require this for top level declarations
+    ParseStructTypeDeclaration(is_top_level = false, is_cbuffer = false) {
+        let type_name = is_top_level ? this.Expect(TokenType.Identifier).value : this.Accept(TokenType.Identifier)?.value;
 
         this.Expect('{');
         let members = [];
@@ -428,38 +455,30 @@ export class Parser {
             }
             this.Expect(';');
         }
-        return new StructType(type_name ?? this.MakeAnonymousName(), members);
+        let struct = new StructType(type_name ?? this.MakeAnonymousName(), members);
+        if (!is_cbuffer) this.struct_declarations.push(struct);
+        return struct;
     }
     ParseMemberType() {
         if (this.Accept(TokenType.Keywords.Struct)) // inner structs
             return this.ParseStructTypeDeclaration();
         else
-            return this.ParseTypeName();
+            return this.ParseNonStructType();
     }
-    ParseTypeName() {
-        let matrix_orientation = this.AcceptAny(TokenType.Keywords.Row_Major, TokenType.Keywords.Column_Major);
-        // NOTE: we already default to column major
-        // TODO: allow emulating compiler flags / #pragma to change default
-        let is_row_major = matrix_orientation && matrix_orientation.type == TokenType.Keywords.Row_Major;
-        //let is_column_major = matrix_orientation && matrix_orientation.type == TokenType.Keywords.Column_Major;
-
+    ParseNonStructTypeImpl(is_row_major) {
         let name = this.Expect(TokenType.Identifier).value;
         if (name == "matrix" || name == "vector") {
-            // TODO: copy pasting this error check sucks, would have to define a separate matrix type (or add marker) and parse orientation outside this function
-            if (matrix_orientation && name != "matrix") throw HLSLError.CreateFromToken(`cannot define ${matrix_orientation.type} for non-matrix type ${name}`, matrix_orientation);
             return this.ParseTemplateType(name, is_row_major);
         }
         for (let t of scalar_typenames) {
             if (name.startsWith(t)) {
                 if (name == t) {
-                    if (matrix_orientation) throw HLSLError.CreateFromToken(`cannot define ${matrix_orientation.type} for non-matrix type ${name}`, matrix_orientation);
                     if (typenames_unsupported.indexOf(t) != -1) throw HLSLError.CreateFromToken(`unsupported type '${this.curToken.value}'`, this.curToken);
                     return BuiltinType.Create(t, 1);
                 }
 
                 let suffix = name.substring(t.length);
                 if (suffix.length == 1 && IsDigit(suffix[0])) {
-                    if (matrix_orientation) throw HLSLError.CreateFromToken(`cannot define ${matrix_orientation.type} for non-matrix type ${name}`, matrix_orientation);
                     let vectorsize = Number(suffix[0]);
                     this.CheckSize(vectorsize, suffix[0], "vector size");
                     if (typenames_unsupported.indexOf(t) != -1) throw HLSLError.CreateFromToken(`unsupported type '${this.curToken.value}'`, this.curToken);
@@ -474,16 +493,30 @@ export class Parser {
                     let vectorsize = is_row_major ? cols : rows;
                     let arraysize = is_row_major ? rows : cols;
                     if (typenames_unsupported.indexOf(t) != -1) throw HLSLError.CreateFromToken(`unsupported type '${this.curToken.value}'`, this.curToken);
-                    let vector_type = BuiltinType.Create(t, vectorsize);
+                    let vector_type = BuiltinType.Create(t, vectorsize, true);
                     if (arraysize == 1)
                         return vector_type; // typeNx1 matrices are layout equivalent to just typeN, not typeN[1]
                     else
-                        return new ArrayType(vector_type, arraysize);
+                        return new ArrayType(vector_type, arraysize, true);
                 }
             }
         }
-        if (matrix_orientation) throw HLSLError.CreateFromToken(`cannot define ${matrix_orientation.type} for non-matrix type ${name}`, matrix_orientation);
-        return this.structs.find((element) => element.type.name == name)?.type;
+        return this.struct_declarations.find((element) => element.name == name);
+    }
+    ParseNonStructType() {
+        let matrix_orientation = this.AcceptAny(TokenType.Keywords.Row_Major, TokenType.Keywords.Column_Major);
+        // NOTE: we already default to column major
+        // TODO: allow emulating compiler flags / #pragma to change default
+        let is_row_major = matrix_orientation && matrix_orientation.type == TokenType.Keywords.Row_Major;
+        //let is_column_major = matrix_orientation && matrix_orientation.type == TokenType.Keywords.Column_Major;
+
+        let type = this.ParseNonStructTypeImpl(is_row_major);
+
+        // I need to do this check with a boolean tag instead of a separate MatrixType because a matrix can be equivalent to either an array or vector and I want to not change all the code down the line
+        if (matrix_orientation && !type.created_from_matrix)
+            throw HLSLError.CreateFromToken(`cannot define ${matrix_orientation.type} for non-matrix type ${type.name}`, matrix_orientation);
+
+        return type;
     }
     ParseTemplateType(name, is_row_major) {
         // template type arguments are optional and default to the following:
@@ -517,11 +550,11 @@ export class Parser {
                 vectorsize = arraysize;
                 arraysize = tmp;
             }
-            let vector_type = BuiltinType.Create(scalar_type, vectorsize);
+            let vector_type = BuiltinType.Create(scalar_type, vectorsize, true);
             if (arraysize == 1)
                 return vector_type; // typeNx1 matrices are layout equivalent to just typeN, not typeN[1]
             else
-                return new ArrayType(vector_type, arraysize);
+                return new ArrayType(vector_type, arraysize, true);
         }
         else {
             return BuiltinType.Create(scalar_type, vectorsize);
