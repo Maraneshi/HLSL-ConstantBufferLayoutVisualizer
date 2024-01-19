@@ -8,10 +8,10 @@ const typenames_unsupported = [
     "min12int", "min16int", "min16uint", "min10float", "min16float", "half"
 ];
 const keywords_unsupported = [ // TODO: support these keywords
-    "typedef", "define", "packoffset", "register", "uniform", "pragma", "pack_matrix"
+    "typedef", "define", "packoffset", "uniform", "pragma", "pack_matrix"
 ];
 const tokens_unsupported = [
-    '(', ')', '#', ':'
+    '#'
 ];
 
 // TODO: for packoffset:
@@ -31,16 +31,16 @@ export const TokenType = {
         Column_Major: "column_major",
         Row_Major: "row_major",
         ConstantBuffer: "ConstantBuffer",
+        Register: "register",
         //    Typedef: "typedef",
         //    Define: "define",
         //    PackOffset: "packoffset",
-        //    Register: "register",
         //    Uniform: "uniform",
         //    Pragma: "pragma",
         //    Pack_Matrix: "pack_matrix"
     },
-    '(': ')',
-    '(': ')',
+    '(': '(',
+    ')': ')',
     '{': '{',
     '}': '}',
     '[': '[',
@@ -389,6 +389,16 @@ export class Parser {
         if (!(size >= min && size <= max)) // negated test to catch NaN
             throw HLSLError.CreateFromToken(`invalid ${name} '${sizestr}' (must be between ${min} and ${max} inclusive)`, this.curToken);
     }
+    ParseOptionalRegisterBinding() {
+        if (this.Accept(':')) {
+            this.Expect(TokenType.Keywords.Register);
+            this.Expect('(');
+            this.Expect(TokenType.Identifier); // not going to check whether this is a correct register, we're not a compiler
+            if (this.Accept(','))
+                this.Expect(TokenType.Identifier); // same here
+            this.Expect(')');
+        }
+    }
     ParseFile() {
         do {
             let type_token = this.ExpectAny(TokenType.Keywords.Struct, TokenType.Keywords.CBuffer, TokenType.Keywords.ConstantBuffer);
@@ -412,6 +422,7 @@ export class Parser {
                     this.ParseInteger();
                     this.Expect(']');
                 }
+                this.ParseOptionalRegisterBinding();
             }
             else { // struct or cbuffer
                 type_declaration = this.ParseStructTypeDeclaration(true, type_token.type == TokenType.Keywords.CBuffer);
@@ -433,6 +444,9 @@ export class Parser {
     }
     ParseStructTypeDeclaration(is_top_level = false, is_cbuffer = false) {
         let type_name = is_top_level ? this.Expect(TokenType.Identifier).value : this.Accept(TokenType.Identifier)?.value;
+
+        if (is_cbuffer)
+            this.ParseOptionalRegisterBinding();
 
         this.Expect('{');
         let members = [];
