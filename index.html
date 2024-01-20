@@ -313,7 +313,7 @@
 
             window.CBV_Create_Shareable_URL = () => {
                 let base64 = StringToBase64(window.CBV_monaco_editor.getValue());
-                let url = location.origin + '/?visualizer=' + encodeURIComponent(base64);
+                let url = location.origin + location.pathname + (location.pathname.endsWith('/') ? '' : '/') + '?visualizer=' + encodeURIComponent(base64);
                 CBV_Shareable_URL.value = url;
             };
 
