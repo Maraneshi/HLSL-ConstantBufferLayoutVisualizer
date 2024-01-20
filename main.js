@@ -34,23 +34,8 @@ export function SetDarkTheme(enable) {
         ApplyLightTheme();
 }
 
-export function Base64ToBytes(base64) {
-    const binString = atob(base64);
-    return Uint8Array.from(binString, (m) => m.codePointAt(0));
-}
-export function BytesToBase64(bytes) {
-    const binString = String.fromCodePoint(...bytes);
-    return btoa(binString);
-}
-
-export function Base64ToString(base64) {
-    return new TextDecoder().decode(Base64ToBytes(base64));
-}
-export function StringToBase64(string) {
-    return BytesToBase64(new TextEncoder().encode(string));
-}
-
 export function CreateMonacoEditor(parent, input_string) {
+    let start = window.performance.now();
     monaco.languages.register({ id: "hlsl" });
     monaco.languages.setMonarchTokensProvider('hlsl', hlsl_lang_def);
     monaco.languages.setLanguageConfiguration('hlsl', hlsl_lang_config);
@@ -80,6 +65,7 @@ cbuffer example {
         scrollBeyondLastLine: false
     });
     parent.style.height = editor.getContentHeight() + 'px';
+    window.performance.measure("CreateMonacoEditor", { start: start });
     return editor;
 }
 

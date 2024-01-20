@@ -222,7 +222,7 @@
                                 <button type="submit">Parse</button><br />
                                 <button type="button" onclick="window.CBV_Create_Shareable_URL();">Create Shareable URL</button>
                                 <br />
-                                <input type="text" id="CBV_Shareable_URL" readonly style="width:calc(100% - 8px)" />
+                                <input type="text" id="CBV_Shareable_URL" readonly style="width:calc(100% - 8px)" autocomplete="off"/>
                                 <button type="button" onclick="navigator.clipboard.writeText(CBV_Shareable_URL.value);">Copy URL</button>
                                 <br />
                                 <label for="CBV_auto_parse_delay">Auto-Parse Delay:</label>
@@ -308,13 +308,17 @@
         <!--<link rel="preload" href="monaco-editor/min/vs/editor/editor.main.nls.js" as="script"/>-->
         <!--<link rel="preload" href="monaco-editor/min/vs/loader.js" as="script"/>-->
 
+        <script src="lz-string/libs/lz-string.min.js"></script>
+
         <script type="module">
-            import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault, Base64ToString, StringToBase64 } from './main.js';
+            import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
 
             window.CBV_Create_Shareable_URL = () => {
-                let base64 = StringToBase64(window.CBV_monaco_editor.getValue());
-                let url = location.origin + location.pathname + (location.pathname.endsWith('/') ? '' : '/') + '?visualizer=' + encodeURIComponent(base64);
+                let start = window.performance.now();
+                var compressed = LZString.compressToEncodedURIComponent(window.CBV_monaco_editor.getValue());
+                let url = location.origin + location.pathname + (location.pathname.endsWith('/') ? '' : '/') + '?visualizer=' + compressed;
                 CBV_Shareable_URL.value = url;
+                window.performance.measure("Compress URL", { start: start });
             };
 
             window.CBV_SetDarkTheme = SetDarkTheme;
@@ -346,8 +350,13 @@
             // function to initialize the custom cbuffer visualizer, used by big button
             window.CBV_Initialize = () => {
 
+                let start = window.performance.now();
+
                 // actual initialization of the entire visualizer, delayed until after Monaco editor script load
                 const DelayedInit = () => {
+
+                    let start = window.performance.now();
+
                     window.CBV_monaco_editor = CreateMonacoEditor(CBV_editor_container, window.CBV_URL_Input_String);
 
                     window.CBV_VisualizeCBuffer = () => {
@@ -372,6 +381,8 @@
                     CBV_VisualizeCBuffer();
                     CBV_enable_div.remove();
                     CBV_root_container.removeAttribute("hidden");
+
+                    window.performance.measure("DelayedInit", { start: start });
                 }
 
                 // first, we preload the script/CSS data in parallel so we don't incur network latency for every single file sequentially
@@ -418,6 +429,8 @@
                 LoadScript("monaco-editor/min/vs/loader.js",
                     () => LoadScript("monaco-editor/min/vs/editor/editor.main.nls.js",
                         () => LoadScript("monaco-editor/min/vs/editor/editor.main.js", DelayedInit)));
+
+                window.performance.measure("CBV_Initialize", { start: start });
             }
 
             CBV_color_theme_controls_inline_container.appendChild(CBV_color_theme_controls);
@@ -429,9 +442,13 @@
                 let encoded_string = params.get("visualizer");
                 if (encoded_string && encoded_string != "") {
                     try {
-                        window.CBV_URL_Input_String = Base64ToString(decodeURIComponent(encoded_string));
+                        let start = window.performance.now();
+                        window.CBV_URL_Input_String = LZString.decompressFromEncodedURIComponent(encoded_string);
+                        window.performance.measure("Decompress URL", { start: start });
+                        if (!window.CBV_URL_Input_String || window.CBV_URL_Input_String == "")
+                            console.log("ERROR: Failed to decode visualizer input in URL");
                     } catch (e) {
-                        console.log("ERROR: Failed to decode base64 in URL");
+                        console.log("ERROR: Failed to decode visualizer input in URL"); // this should never throw, but just in case
                     }
                 }
                 CBV_enable_button.click();
