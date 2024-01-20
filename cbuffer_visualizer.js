@@ -336,6 +336,7 @@ class StructLayoutVisualizer {
         this.init_offset_y = 20;
         this.init_offset_x = 14;
         this.level = 0;
+        this.hex_offsets = options.svg_hex_offsets;
     }
     NextColor() {
         return this.color_index++;
@@ -365,7 +366,8 @@ class StructLayoutVisualizer {
             text.setAttribute("x", this.init_offset_x + i * this.width_per_byte);
             text.setAttribute("y", y - 5);
             text.setAttribute("text-anchor", "middle");
-            text.append(String(start_offset + i));
+            let offset_str = this.hex_offsets ? Number(start_offset + i).toString(16).toUpperCase() : String(start_offset + i);
+            text.append(offset_str);
             group.append(text);
             if ((i % 16) != 0) {
                 const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -484,6 +486,7 @@ export const CBufferVisualizerOptionsDefault = {
     color_hue_range: 360,
     svg_width_per_byte: 24,
     svg_outer_rect_height: 36,
+    svg_hex_offsets: false,
     dark_theme: true
 };
 
@@ -680,6 +683,20 @@ export class CBufferVisualizer {
         this.#RemoveEventListeners();
         this.#DoColoredRects();
         this.#AddEventListeners();
+    }
+    SetSVGHexOffsets(svg_hex_offsets) {
+        let was_hex = this.options.svg_hex_offsets;
+        if (was_hex != svg_hex_offsets) {
+            this.options.svg_hex_offsets = svg_hex_offsets;
+            for (const child of this.out_svg.firstChild.children) { // outer rect group
+                if (child.tagName == "text") { // offset text
+                    if (was_hex)
+                        child.textContent = parseInt(child.textContent, 16).toString();
+                    else
+                        child.textContent = Number(child.textContent).toString(16).toUpperCase();
+                }
+            }
+        }
     }
     SetColorShuffle(color_shuffle) {
         this.options.color_shuffle = color_shuffle;

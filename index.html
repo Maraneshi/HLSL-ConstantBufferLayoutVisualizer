@@ -129,6 +129,7 @@
         .CBV_right {
             flex: 1; /* this effectively aligns it to the right side */
             /*margin-left: 8px;*/
+            margin-top: 8px;
         }
         .CBV_example_container {
             margin-left: -8px; /* strip padding for mobile layout */
@@ -231,8 +232,11 @@
                                 <output id="CBV_auto_parse_delay_value"></output>
                                 <script>CBV_auto_parse_delay_value.value = CBV_auto_parse_delay.value;</script>
                                 <br />
+                                <label for="CBV_hex_offsets">Hexadecimal Offsets</label>
+                                <input type="checkbox" id="CBV_hex_offsets" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetSVGHexOffsets(this.checked); window.CBV_ExampleVisualizers?.SetSVGHexOffsets(this.checked);" />
+                                <br />
                                 <label for="CBV_expanded_arrays">Expanded Arrays</label>
-                                <input type="checkbox" id="CBV_expanded_arrays" checked="checked" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetExpandedArrays(this.checked);" />
+                                <input type="checkbox" id="CBV_expanded_arrays" checked autocomplete="off" onchange="window.CBV_VisualizerObject?.SetExpandedArrays(this.checked);" />
                                 <br />
                                 <label for="CBV_text_alignment">Offset Text Alignment:</label>
                                 <input type="number" id="CBV_text_alignment" value="28" min="10" max="200" style="width:3em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextAlignment(this.value);" />
@@ -270,7 +274,7 @@
                                         <script>CBV_color_hue_range_value.value = CBV_color_hue_range.value;</script>
                                         <br />
                                         <label for="CBV_dark_theme">Dark Theme</label>
-                                        <input type="checkbox" id="CBV_dark_theme" autocomplete="off" onchange="window.CBV_SetDarkTheme(this.checked);" checked="checked" />
+                                        <input type="checkbox" id="CBV_dark_theme" autocomplete="off" onchange="window.CBV_SetDarkTheme(this.checked);" checked />
                                     </div>
                                 </div>
                                 <p>Supported Keywords:<br />
@@ -312,6 +316,9 @@
 
         <script type="module">
             import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
+
+            if (navigator.userAgentData?.mobile ?? /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent))
+                CBV_enable_button.textContent = "Click to Load Visualizer (unsupported on mobile)";
 
             window.CBV_Create_Shareable_URL = () => {
                 let start = window.performance.now();

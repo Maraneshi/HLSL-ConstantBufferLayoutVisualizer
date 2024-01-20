@@ -139,6 +139,11 @@ export class CBufferVisualizerList {
             }
         }
     }
+    SetSVGHexOffsets(svg_hex_offsets) {
+        for (let viz of this.list) {
+            viz.SetSVGHexOffsets(svg_hex_offsets);
+        }
+    }
     SetColorShuffle(color_shuffle) {
         for (let viz of this.list) {
             viz.SetColorShuffle(color_shuffle);
