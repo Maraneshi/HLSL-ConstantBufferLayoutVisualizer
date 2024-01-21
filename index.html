@@ -29,21 +29,24 @@
             font-size: 14px;
             white-space: pre;
         }
+
         code {
             font-family: Consolas, monospace;
             white-space: pre;
             background-color: #EEEEEE;
             font-size: 0.92em;
         }
+
         .resizer {
             background-color: #777777;
             cursor: ew-resize;
             min-height: 100%;
-            min-width:2px;
+            min-width: 2px;
             width: 2px;
             padding: 8px;
             background-clip: content-box;
         }
+
         .resizer_vert {
             background-color: #777777;
             cursor: ns-resize;
@@ -53,61 +56,78 @@
             padding: 8px;
             background-clip: content-box;
         }
+
         :root {
             font-size: 18px;
         }
+
         #main_article p {
             line-height: 1.3em;
             text-align: justify;
         }
+
         li {
             line-height: 1.3em;
             margin-block-end: 0.5em;
         }
+
         sup {
             line-height: 100%;
-            font-size:0.89em;
+            font-size: 0.89em;
             vertical-align: top;
         }
+
         a {
-            text-decoration:none;
+            text-decoration: none;
         }
+
         a:hover {
-            text-decoration:underline;
+            text-decoration: underline;
         }
+
         #CBV_root_container {
             font-size: initial;
             line-height: initial;
         }
+
         h4 {
             margin-block-start: 0.5em;
             margin-block-end: 0.5em;
         }
+
         h3 {
             font-size: 1.25em;
         }
+
         .rule_definition {
             color: #2d14ad;
             /*padding-top: 16px;*/
         }
+
         .rule_definition > code {
             background-color: #d3ebff;
         }
+
         .keyword {
             color: #0000ff;
         }
+
         .bracket0 {
             color: #0431fa;
         }
+
         .bracket1 {
             color: #319331;
         }
+
         .bracket2 {
             color: #7b3814;
         }
+
         .number {
             color: #098658;
         }
+
         .CBV_example {
             width: calc(100% - 18px);
             padding: 8px;
@@ -115,22 +135,26 @@
             border-bottom: 2px solid #777777;
             border-radius: 12px;
         }
+
         .CBV_left {
             flex: auto;
             margin-left: 8px;
             margin-right: 8px;
         }
+
         .CBV_middle {
             flex: auto;
             margin-left: 8px;
             /*margin-right: 8px;*/
-            margin-right:16px; /* includes margin from CBV_right, better for mobile layout */
+            margin-right: 16px; /* includes margin from CBV_right, better for mobile layout */
         }
+
         .CBV_right {
             flex: 1; /* this effectively aligns it to the right side */
             /*margin-left: 8px;*/
             margin-top: 8px;
         }
+
         .CBV_example_container {
             margin-left: -8px; /* strip padding for mobile layout */
             margin-top: -8px; /* looks more consistent with the above */
@@ -139,21 +163,30 @@
             width: calc(100% + 8px);
             flex-wrap: wrap;
         }
+
         dfn {
-            font-weight:bold;
-            font-style:normal;
+            font-weight: bold;
+            font-style: normal;
         }
+
         var {
-            font-weight:normal;
-            font-style:normal;
-            font-family:math;
+            font-weight: normal;
+            font-style: normal;
+            font-family: math;
         }
+
         body {
             counter-reset: footnote;
         }
+
         a[href^="#fn"] ::after {
             counter-increment: footnote;
             content: counter(footnote)
+        }
+        .article_width {
+            margin: 0px auto;
+            width:60em;
+            max-width:100%;
         }
     </style>
     <style title="CBV Dark Theme">
@@ -172,30 +205,39 @@
             color: rgb(255, 255, 255);
             background-color: rgb(14, 99, 156);
         }
+
         code {
             background-color: #3C3C3C;
         }
+
         .rule_definition {
             color: #A0A0F4;
         }
-        .rule_definition > code {
-            background-color: #251960;
-        }
+
+            .rule_definition > code {
+                background-color: #251960;
+            }
+
         a {
             color: #4e94de;
         }
+
         .keyword {
             color: #569cd6;
         }
+
         .bracket0 {
             color: #ffd700;
         }
+
         .bracket1 {
             color: #da70d6;
         }
+
         .bracket2 {
             color: #179fff;
         }
+
         .number {
             color: #b5cea8;
         }
@@ -223,7 +265,7 @@
                                 <button type="submit">Parse</button><br />
                                 <button type="button" onclick="window.CBV_Create_Shareable_URL();">Create Shareable URL</button>
                                 <br />
-                                <input type="text" id="CBV_Shareable_URL" readonly style="width:calc(100% - 8px)" autocomplete="off"/>
+                                <input type="text" id="CBV_Shareable_URL" readonly style="width:calc(100% - 8px)" autocomplete="off" />
                                 <button type="button" onclick="navigator.clipboard.writeText(CBV_Shareable_URL.value);">Copy URL</button>
                                 <br />
                                 <label for="CBV_auto_parse_delay">Auto-Parse Delay:</label>
@@ -277,8 +319,9 @@
                                         <input type="checkbox" id="CBV_dark_theme" autocomplete="off" onchange="window.CBV_SetDarkTheme(this.checked);" checked />
                                     </div>
                                 </div>
-                                <p>Supported Keywords:<br />
-                                <span id="CBV_keywords_text" class="code" style="white-space:pre-wrap"></span>
+                                <p>
+                                    Supported Keywords:<br />
+                                    <span id="CBV_keywords_text" class="code" style="white-space:pre-wrap"></span>
                                 </p>
                             </div>
                         </form>
@@ -467,7 +510,7 @@
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
                 <h2>HLSL Constant Buffer Packing Rules</h2>
             </div>
-            <div style="margin: 0px auto; width:60em; max-width:100%">
+            <div class="article_width">
                 <!-- TODO: I vs We vs ??? -->
                 <h3 id="Introduction">0. Introduction</h3>
                 <p>
@@ -532,7 +575,7 @@
                 </p>
                 <p>
                     For the sake of completeness, the minimum-precision types (<code>min10/16*</code>) and <code>half</code> have a storage size (and thus alignment) in memory of 4 bytes by default, even though the driver compiler is
-                    allowed to emit lower precision ALU instructions for the min-precision types (not <code>half</code>, which is directly mapped to <code>float</code>). When you enable native 16-bit type support via the 
+                    allowed to emit lower precision ALU instructions for the min-precision types (not <code>half</code>, which is directly mapped to <code>float</code>). When you enable native 16-bit type support via the
                     <code>-enable-16bit-types</code> command line argument to DXC, all of those types including <code>half</code> turn into actual 16-bit types like <code>(u)int16_t</code> or <code>float16_t</code> and have a corresponding
                     size and alignment of 2 bytes, as in the examples. There are no types smaller than 4 bytes in HLSL without using DXC and this command line flag. <a href="#fn:16-bit-types" id="fnref:16-bit-types"><sup></sup></a>
                 </p>
@@ -768,8 +811,6 @@
                         </li>
                     </ol>
                 </aside>
-                <!-- extra screen height so that the footnote links put you in the right place -->
-                <div style="height:calc(100vh - (1.3em * 3));"></div> 
 
                 <template id="CBV_example_template">
                     <div class="CBV_example_container">
@@ -829,5 +870,19 @@
             </div>
         </article>
     </main>
+    <footer class="article_width" style="text-align:center">
+        <hr style="margin-top:16px; margin-bottom:16px" />
+        <p>
+            Copyright &copy; 2024 Maraneshi
+        </p>
+        <a href="https://twitter.com/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#B197FC" d="M459.4 151.7c.3 4.5 .3 9.1 .3 13.6 0 138.7-105.6 298.6-298.6 298.6-59.5 0-114.7-17.2-161.1-47.1 8.4 1 16.6 1.3 25.3 1.3 49.1 0 94.2-16.6 130.3-44.8-46.1-1-84.8-31.2-98.1-72.8 6.5 1 13 1.6 19.8 1.6 9.4 0 18.8-1.3 27.6-3.6-48.1-9.7-84.1-52-84.1-103v-1.3c14 7.8 30.2 12.7 47.4 13.3-28.3-18.8-46.8-51-46.8-87.4 0-19.5 5.2-37.4 14.3-53 51.7 63.7 129.3 105.3 216.4 109.8-1.6-7.8-2.6-15.9-2.6-24 0-57.8 46.8-104.9 104.9-104.9 30.2 0 57.5 12.7 76.7 33.1 23.7-4.5 46.5-13.3 66.6-25.3-7.8 24.4-24.4 44.8-46.1 57.8 21.1-2.3 41.6-8.1 60.4-16.2-14.3 20.8-32.2 39.3-52.6 54.3z" /></svg></a>
+        <a href="https://mastodon.gamedev.place/@Maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#B197FC" d="M433 179.1c0-97.2-63.7-125.7-63.7-125.7-62.5-28.7-228.6-28.4-290.5 0 0 0-63.7 28.5-63.7 125.7 0 115.7-6.6 259.4 105.6 289.1 40.5 10.7 75.3 13 103.3 11.4 50.8-2.8 79.3-18.1 79.3-18.1l-1.7-36.9s-36.3 11.4-77.1 10.1c-40.4-1.4-83-4.4-89.6-54a102.5 102.5 0 0 1 -.9-13.9c85.6 20.9 158.7 9.1 178.8 6.7 56.1-6.7 105-41.3 111.2-72.9 9.8-49.8 9-121.5 9-121.5zm-75.1 125.2h-46.6v-114.2c0-49.7-64-51.6-64 6.9v62.5h-46.3V197c0-58.5-64-56.6-64-6.9v114.2H90.2c0-122.1-5.2-147.9 18.4-175 25.9-28.9 79.8-30.8 103.8 6.1l11.6 19.5 11.6-19.5c24.1-37.1 78.1-34.8 103.8-6.1 23.7 27.3 18.4 53 18.4 175z" /></svg></a>
+        <a href="https://cohost.org/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 416 300"><path fill="#B197FC" fill-rule="evenodd" clip-rule="evenodd" d="M335.13 249.687c-26.067 15.965-56.123 28.509-90.166 37.631-37.809 10.131-73.445 14.192-106.908 12.183-33.463-2.008-61.9733-10.738-85.5305-26.188-23.5573-15.45-39.4399-38.491-47.64762-69.123-8.2548-30.807-6.03245-58.746 6.66702-83.818 12.6995-25.0714 33.0606-46.755 61.0832-65.0511 28.0229-18.296 60.9379-32.5095 98.7469-42.6402C209.008 2.59678 244.501-1.47294 277.854.471489 300.262 1.778 320.475 6.10779 338.49 13.4609c8.799 3.591 17.073 7.9031 24.824 12.9363 23.621 15.3393 39.536 38.325 47.744 68.957 8.208 30.6318 5.93 58.5388-6.834 83.7218-1.783 3.518-3.714 6.97-5.793 10.358-1.468-6.614-4.418-12.382-8.849-17.302-2.175-2.415-4.593-4.634-7.255-6.655-5.451-4.138-11.924-7.448-19.418-9.932-11.153-3.697-23.582-5.545-37.285-5.545-13.766 0-26.242 1.832-37.428 5.497-11.185 3.665-20.076 9.178-26.673 16.539-6.597 7.362-9.895 16.651-9.895 27.868 0 11.154 3.298 20.427 9.895 27.821 6.597 7.393 15.488 12.954 26.673 16.682 11.186 3.729 23.662 5.593 37.428 5.593 3.24 0 6.408-.104 9.506-.313Zm-119.254-19.859c-2.613 2.804-7.218 5.784-13.814 8.939-6.597 3.155-14.548 5.816-23.853 7.982-9.305 2.167-19.311 3.251-30.019 3.251-9.369 0-18.547-.908-27.533-2.725-8.987-1.816-17.113-4.7-24.379-8.652-7.2658-3.951-13.0497-9.114-17.3519-15.487-4.302-6.374-6.4531-14.118-6.4531-23.232 0-9.241 2.1511-17.049 6.4531-23.422 4.3022-6.374 10.0861-11.504 17.3519-15.392 7.266-3.888 15.392-6.708 24.379-8.461 8.986-1.753 18.164-2.629 27.533-2.629 10.771 0 20.714.956 29.828 2.868s16.937 4.414 23.47 7.505c6.533 3.091 11.265 6.389 14.197 9.895l-24.474 16.061c-3.569-3.888-8.987-6.995-16.252-9.321-7.266-2.327-16.093-3.49-26.482-3.49-5.099 0-10.246.399-15.44 1.195-5.194.797-9.958 2.151-14.292 4.063s-7.824 4.589-10.469 8.031c-2.645 3.442-3.967 7.807-3.967 13.097 0 5.227 1.322 9.545 3.967 12.954 2.645 3.41 6.135 6.119 10.469 8.127 4.334 2.007 9.098 3.425 14.292 4.254 5.194.829 10.341 1.243 15.44 1.243 10.197 0 19.041-1.275 26.529-3.824 7.489-2.55 12.763-5.482 15.823-8.796l25.047 15.966Zm109.748-3.729c13.321 0 23.646-2.39 30.976-7.17 7.329-4.78 10.994-11.121 10.994-19.025 0-8.094-3.681-14.451-11.042-19.072-7.362-4.621-17.671-6.931-30.928-6.931-13.32 0-23.693 2.31-31.118 6.931-7.425 4.621-11.138 10.978-11.138 19.072 0 8.031 3.713 14.404 11.138 19.121 7.425 4.716 17.798 7.074 31.118 7.074Z"></path></svg></a>
+        <a href="https://twitch.tv/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#B197FC" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73.1H294.6l-67.6 64v-64H140.1V36.6H449.1z" /></svg></a>
+        <a href="https://github.com/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 496 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#B197FC" d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3 .3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5 .3-6.2 2.3zm44.2-1.7c-2.9 .7-4.9 2.6-4.6 4.9 .3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3 .7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3 .3 2.9 2.3 3.9 1.6 1 3.6 .7 4.3-.7 .7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3 .7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3 .7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z" /></svg></a>
+        <a href="https://buymeacoffee.com/maraneshi" style="padding:8px;"><svg height="48" width="48"><circle r="24" fill="#B197FC" cx="24" cy="24"></circle><text x="27" y="36" text-anchor="middle" font-size="34px">🍕</text></svg></a>
+    </footer>
+    <!-- extra screen height so that the footnote links put you in the right place -->
+    <div style="height:calc(100vh - (1.3em * 7));"></div>
 </body>
 </html>
