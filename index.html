@@ -60,12 +60,12 @@
             font-size: 18px;
         }
 
-        #main_article p, #main_article i, li[id^="fn:"] {
+        #main_article p, #main_article i, #footnotes_list li {
             line-height: 1.3;
             text-align: justify;
         }
 
-        li {
+        #footnotes_list li {
             margin-block-end: 0.5em;
         }
 
@@ -294,6 +294,8 @@
                                 <button type="button" onclick="window.CBV_Create_Shareable_URL();">Create Shareable Link</button>
                                 <button style="float:right" type="button" onclick="navigator.clipboard.writeText(CBV_Shareable_URL.value);">Copy Link</button>
                                 <br />
+                                <!-- TODO: add checkbox to toggle between cbuffer and "C-like" layout, which will use the existing StructuredBuffer layout -->
+                                <!-- TODO: add a ✔/❌ thing that indicates whether the C and HLSL layouts are the same -->
                                 <label for="CBV_hex_offsets">Hexadecimal Offsets</label>
                                 <input type="checkbox" id="CBV_hex_offsets" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetSVGHexOffsets(this.checked); window.CBV_ExampleVisualizers?.SetSVGHexOffsets(this.checked);" />
                                 <br />
@@ -340,9 +342,15 @@
                                     </div>
                                 </div>
                                 <p>
-                                    Supported Keywords:<br />
+                                    <b>Supported Keywords:</b><br />
                                     <span id="CBV_keywords_text" class="code" style="white-space:pre-wrap"></span>
                                 </p>
+                                <div>
+                                    <b>Updates:</b><br />
+                                    <ul style="margin-top: 2px; margin-bottom: 2px; padding-left: 24px;">
+                                        <li>2024-01-24: Structured Buffers are now supported!</li> <!-- TODO: update date -->
+                                    </ul>
+                                </div>
                             </div>
                         </form>
                     </div>
@@ -378,7 +386,7 @@
         <script src="lz-string/libs/lz-string.min.js"></script>
 
         <script type="module">
-            import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, CBufferVisualizerOptionsDefault } from './main.js';
+            import { EnableResizer, ParseHLSLAndVisualizeMonaco, GetSupportedKeywords, SetDarkTheme, CreateMonacoEditor, BufferVisualizerOptionsDefault } from './main.js';
 
             if (navigator.userAgentData?.mobile ?? /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent))
                 CBV_enable_button.textContent = "Click to Load Visualizer (unsupported on mobile)";
@@ -394,7 +402,7 @@
             window.CBV_SetDarkTheme = SetDarkTheme;
 
             window.GetVisualizerOptions = () => {
-                let options = Object.assign({}, CBufferVisualizerOptionsDefault);
+                let options = Object.assign({}, BufferVisualizerOptionsDefault);
                 options.expanded_arrays = CBV_expanded_arrays.checked;
                 options.text_alignment = CBV_text_alignment.value;
                 options.color_shuffle = CBV_color_shuffle.checked;
@@ -793,7 +801,7 @@
                 <hr />
                 <aside>
                     <h3 id="Footnotes">Footnotes:</h3>
-                    <ol>
+                    <ol id="footnotes_list">
                         <li id="fn:DXC">
                             The DXC compiler for D3D12 technically offers a command line flag to disable the "legacy" constant buffer layout rules,
                             but no graphics driver can actually interpret the resulting shader correctly, so it is unusable until we get a new shader model update formalizing the specifications and support properly.
@@ -851,22 +859,22 @@
                 </template>
 
                 <script type="module">
-                    import { ParseHLSLAndVisualizeTextNode, CBufferVisualizerList, CBufferVisualizerOptionsDefault } from './main.js';
+                    import { ParseHLSLAndVisualizeTextNode, BufferVisualizerList, BufferVisualizerOptionsDefault } from './main.js';
 
                     // scale down SVG rects on very narrow screens
                     const GetRectScale = () => {
                         let example = document.querySelector(".CBV_example");
                         let container_width = parseFloat(window.getComputedStyle(example).width) - 16 /* padding */;
-                        let default_rect_width = 16 * CBufferVisualizerOptionsDefault.svg_width_per_byte;
+                        let default_rect_width = 16 * BufferVisualizerOptionsDefault.svg_width_per_byte;
                         let rect_scale = Math.max(Math.min(container_width / default_rect_width, 1.0), 0.75);
                         return rect_scale;
                     };
 
                     window.addEventListener("resize", () => {
-                        window.CBV_ExampleVisualizers?.SetSVGWidthPerByte(GetRectScale() * CBufferVisualizerOptionsDefault.svg_width_per_byte);
+                        window.CBV_ExampleVisualizers?.SetSVGWidthPerByte(GetRectScale() * BufferVisualizerOptionsDefault.svg_width_per_byte);
                     }, { passive: true });
 
-                    window.CBV_ExampleVisualizers = new CBufferVisualizerList();
+                    window.CBV_ExampleVisualizers = new BufferVisualizerList();
                     let examples = document.querySelectorAll(".CBV_example");
                     let options = window.GetVisualizerOptions();
                     options.text_alignment = 22;

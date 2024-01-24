@@ -23,7 +23,7 @@ const tokens_unsupported = [
 //  - maybe we can do one pass layouting *only* the forced offset vars and then a second pass doing everything else? like a "shadow struct" overlaid on top?
 
 export const TokenType = {
-    Identifier: "identifier", // NOTE: currently not differentiating between numbers and identifiers
+    Identifier: "identifier",
     Number: "number",
     Keywords: {
         CBuffer: "cbuffer", // NOTE: these must exactly match the keywords, at least on the right side
@@ -31,6 +31,7 @@ export const TokenType = {
         Column_Major: "column_major",
         Row_Major: "row_major",
         ConstantBuffer: "ConstantBuffer",
+        StructuredBuffer: "StructuredBuffer",
         Register: "register",
         Typedef: "typedef",
         //    Define: "define",
@@ -217,10 +218,11 @@ export class Lexer {
 };
 
 export class MemberVariable {
-    constructor(type, name, isCBuffer = false) {
+    constructor(type, name) {
         this.type = type;
         this.name = name;
-        this.isCBuffer = isCBuffer;
+        this.isCBuffer = false;
+        this.isSBuffer = false;
     }
 };
 
@@ -288,8 +290,7 @@ export class Parser {
         this.tokens = lexer.GetAllTokens();
         this.curToken = null;
         this.nextToken = this.tokens[this.index + 1] ?? null;
-        this.cbuffers = [];
-        this.struct_declarations = [];
+        this.buffers = [];
         this.typedefs = [];
         this.counter = 0;
     }
@@ -402,6 +403,12 @@ export class Parser {
         if (!(size >= min && size <= max)) // negated test to catch NaN
             throw HLSLError.CreateFromToken(`invalid ${name} '${sizestr}' (must be between ${min} and ${max} inclusive)`, this.curToken);
     }
+    AddTypedef(type, name) {
+        if (this.typedefs.find((e) => e.name == name)) {
+            throw HLSLError.CreateFromToken(`redefinition of type '${name}'`, this.curToken);
+        }
+        this.typedefs.push(new Typedef(type, name));
+    }
     ParseOptionalRegisterBinding() {
         if (this.Accept(':')) {
             this.Expect(TokenType.Keywords.Register);
@@ -414,26 +421,30 @@ export class Parser {
     }
     ParseFile() {
         do {
-            let token_type = this.ExpectAny(TokenType.Keywords.Struct, TokenType.Keywords.CBuffer, TokenType.Keywords.ConstantBuffer, TokenType.Keywords.Typedef).type;
+            let token_type = this.ExpectAny(
+                TokenType.Keywords.Struct,
+                TokenType.Keywords.CBuffer,
+                TokenType.Keywords.ConstantBuffer,
+                TokenType.Keywords.StructuredBuffer,
+                TokenType.Keywords.Typedef).type;
 
             if (token_type == TokenType.Keywords.Typedef) {
                 let local_typedefs = [];
-                this.ParseMemberVariableIntoArray(local_typedefs); // typedefs are syntactically like member variable declarations
+                this.ParseMemberVariableIntoArray(local_typedefs); // typedefs are syntactically like member variable declarations you can have multiple names using comma
                 for (let t of local_typedefs) {
-                    this.typedefs.push(new Typedef(t.type, t.name));
+                    AddTypedef(t.type, t.name);
                 }
             }
-            else { // type / variable declaration (struct, cbuffer, ConstantBuffer)
+            else { // type / variable declaration (struct, cbuffer, ConstantBuffer, StructuredBuffer)
                 let type_declaration = null;
                 let variable_name_token = null;
 
-                // ConstantBuffer<type>, where type must be a previously defined struct (not inline, not a scalar/vector, etc.)
+                // ConstantBuffer<T>, where T must be a previously defined struct (not inline, not a scalar/vector, etc.)
                 if (token_type == TokenType.Keywords.ConstantBuffer) {
                     this.Expect('<');
                     let template_type_name_token = this.Expect(TokenType.Identifier);
-                    type_declaration = this.struct_declarations.find((element) => element.name == template_type_name_token.value);
-                    if (!type_declaration)
-                        type_declaration = this.typedefs.find((element) => element.name == template_type_name_token.value)?.type;
+
+                    type_declaration = this.typedefs.find((element) => element.name == template_type_name_token.value)?.type;
 
                     if (!type_declaration) {
                         // try to see if it's a valid type name, but not a struct
@@ -447,9 +458,8 @@ export class Parser {
                         throw HLSLError.CreateFromToken(`template type '${template_type_name_token.value}' must be a struct type (is '${type_declaration.constructor.name}')`, template_type_name_token);
 
                     this.Expect('>');
-                    variable_name_token = this.Expect(TokenType.Identifier);
 
-                    // accept arrays of ConstantBuffers, but ignore them
+                    variable_name_token = this.Expect(TokenType.Identifier);
                     while (this.Accept('[')) {
                         this.ParseInteger();
                         this.Expect(']');
@@ -459,24 +469,48 @@ export class Parser {
                     // make things slightly more consistent between cbuffer and ConstantBuffer by making an inner struct declaration
                     type_declaration = new StructType(variable_name_token.value, [new MemberVariable(type_declaration, "")]);
                 }
-                else { // struct or cbuffer
-                    type_declaration = this.ParseStructTypeDeclaration(true, token_type == TokenType.Keywords.CBuffer);
+                else if (token_type == TokenType.Keywords.StructuredBuffer) { // StructuredBuffer<T>, accepts any type T except inline struct definitions
+                    this.Expect('<');
+                    let template_type = this.ParseNonStructType(); // NOTE: unlike the name implies, this can still return a struct type defined elsewhere, just not inline structs
+                    this.Expect('>');
+
+                    variable_name_token = this.Expect(TokenType.Identifier);
+                    while (this.Accept('[')) {
+                        this.ParseInteger();
+                        this.Expect(']');
+                    }
+                    this.ParseOptionalRegisterBinding();
+
+                    // put template type into outer struct for the buffer
+                    type_declaration = new StructType(variable_name_token.value, [new MemberVariable(template_type, "")]);
+                }
+                else if (token_type == TokenType.Keywords.Struct) { // struct declaration
+                    type_declaration = this.ParseStructTypeDeclaration(true);
                     variable_name_token = this.Accept(TokenType.Identifier);
+                    while (this.Accept('[')) {
+                        this.ParseInteger();
+                        this.Expect(']');
+                    }
+                }
+                else if (token_type == TokenType.Keywords.CBuffer) { // cbuffer declaration
+                    type_declaration = this.ParseStructTypeDeclaration(true, true);
                 }
 
                 this.Expect(';');
 
-                if (token_type == TokenType.Keywords.CBuffer || token_type == TokenType.Keywords.ConstantBuffer) {
+                if (token_type == TokenType.Keywords.CBuffer || token_type == TokenType.Keywords.ConstantBuffer || token_type == TokenType.Keywords.StructuredBuffer) {
                     // treat top level declarations as "member variables" of the global scope so we can get their variable names
-                    this.cbuffers.push(new MemberVariable(type_declaration, variable_name_token ? variable_name_token.value : "", true));
+                    let global_member = new MemberVariable(type_declaration, variable_name_token ? variable_name_token.value : "");
+                    global_member.isCBuffer = (token_type == TokenType.Keywords.CBuffer || token_type == TokenType.Keywords.ConstantBuffer);
+                    global_member.isSBuffer = token_type == TokenType.Keywords.StructuredBuffer;
+                    this.buffers.push(global_member);
                 }
             }
 
         } while (this.TokensLeft() > 0);
 
-        return this.cbuffers;
+        return this.buffers;
     }
-
     ParseStructTypeDeclaration(is_top_level = false, is_cbuffer = false) {
         let type_name = is_top_level ? this.Expect(TokenType.Identifier).value : this.Accept(TokenType.Identifier)?.value;
 
@@ -489,7 +523,11 @@ export class Parser {
             this.ParseMemberVariableIntoArray(members);
         }
         let struct = new StructType(type_name ?? this.MakeAnonymousName(), members);
-        if (!is_cbuffer && type_name) this.struct_declarations.push(struct);
+        if (!is_cbuffer && type_name) {
+            // TODO: Technically I'd need to know the parent and use Parent::Child as name for the typedef if applicable, but the code is already complicated enough.
+            //       For lookup I'd also need to do the locally nested types first, they have precedence over global definitions.
+            this.AddTypedef(struct, struct.name);
+        }
         return struct;
     }
     ParseMemberVariableIntoArray(members) {
@@ -554,10 +592,7 @@ export class Parser {
                 }
             }
         }
-        let type = this.struct_declarations.find((element) => element.name == name);
-        if (!type)
-            type = this.typedefs.find((element) => element.name == name)?.type;
-        return type;
+        return this.typedefs.find((element) => element.name == name)?.type;
     }
     ParseNonStructType() {
         let matrix_orientation = this.AcceptAny(TokenType.Keywords.Row_Major, TokenType.Keywords.Column_Major);

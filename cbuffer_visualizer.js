@@ -1,5 +1,5 @@
 import { StructType, ArrayType, Parser, Lexer, HLSLError } from './cbuffer_parser.js';
-import { CBufferLayoutAlgorithm } from './cbuffer_layout.js';
+import { CBufferLayoutAlgorithm, StructuredBufferLayoutAlgorithm } from './cbuffer_layout.js';
 
 function DotProduct(v1, v2) {
     return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
@@ -237,7 +237,7 @@ class StructPrinter {
     }
     PrintColoredStructLayoutInternal(struct, parent) {
         let struct_color = this.NextColor();
-        this.AddText(struct, `${struct.isCBuffer ? "cbuffer" : "struct"} ${struct.type.name} {\n`, struct_color);
+        this.AddText(struct, `${struct.isCBuffer ? "cbuffer" : struct.isSBuffer ? "StructuredBuffer" : "struct"} ${struct.type.name} {\n`, struct_color);
         this.indentation++;
         for (let m of struct.submembers) {
             this.PrintColoredLayoutMember(m, struct);
@@ -248,7 +248,7 @@ class StructPrinter {
                 this.AddAlignedText(parent, `} ${parent.name}[${parent.submembers.length}];`, `${this.GetOffSizePadString(parent.offset, parent.size, parent.padding)}\n`, struct_color);
             }
             else {
-                this.AddAlignedText(struct, `} ${struct.name};`, `${this.GetOffSizePadString(struct.isCBuffer ? "" : struct.offset, struct.size, struct.padding)}\n`, struct_color);
+                this.AddAlignedText(struct, `} ${struct.name};`, `${this.GetOffSizePadString(struct.isGlobal ? "" : struct.offset, struct.size, struct.padding)}\n`, struct_color);
                 this.check_size += struct.padding;
             }
         }
@@ -418,9 +418,15 @@ class StructLayoutVisualizer {
     }
     AddRectForMember(color_index, member, skip_name = false) {
         member.CBV_rects = [];
-        for (let i = 0; i < Math.ceil(member.size / 16); i++) {
-            let inner_rect = this.AddRectInner(color_index, member.offset + i * 16, Math.min(member.size - i * 16, 16), skip_name ? null : member.name);
+
+        let i = 0;
+        while (i < member.size) {
+            let member_row_start = ((member.offset + i) % 16);
+            let member_row_end = Math.min(16, (member_row_start + member.size - i));
+            let rect_size = member_row_end - member_row_start;
+            let inner_rect = this.AddRectInner(color_index, member.offset + i, rect_size, skip_name ? null : member.name);
             member.CBV_rects.push(inner_rect);
+            i += rect_size;
         }
     }
     VisualizeMember(member, parent) {
@@ -475,7 +481,7 @@ class StructLayoutVisualizer {
     }
 };
 
-export const CBufferVisualizerOptionsDefault = {
+export const BufferVisualizerOptionsDefault = {
     expanded_arrays: true,
     text_alignment: 28,
     color_shuffle: false,
@@ -490,7 +496,7 @@ export const CBufferVisualizerOptionsDefault = {
     dark_theme: true
 };
 
-export class CBufferVisualizer {
+export class BufferVisualizer {
     constructor(out_text, out_svg, options) {
         this.out_text = out_text;
         this.out_svg = out_svg;
@@ -557,7 +563,7 @@ export class CBufferVisualizer {
     static #RecurseLayout(layout, func) {
         func(layout);
         for (let m of layout.submembers) {
-            CBufferVisualizer.#RecurseLayout(m, func);
+            BufferVisualizer.#RecurseLayout(m, func);
         }
     }
     #RemoveEventListeners() {
@@ -583,7 +589,7 @@ export class CBufferVisualizer {
             }
         };
 
-        CBufferVisualizer.#RecurseLayout(this.layouts[0], remove_event_listeners);
+        BufferVisualizer.#RecurseLayout(this.layouts[0], remove_event_listeners);
 
         window.performance.measure("RemoveEventListeners", { start: start });
     }
@@ -640,7 +646,7 @@ export class CBufferVisualizer {
             }
         };
 
-        CBufferVisualizer.#RecurseLayout(this.layouts[0], add_event_listeners);
+        BufferVisualizer.#RecurseLayout(this.layouts[0], add_event_listeners);
         
         window.performance.measure("AddEventListeners", { start: start });
     }
@@ -653,17 +659,21 @@ export class CBufferVisualizer {
 
         window.performance.measure("DoVisualization", { start:start });
     }
-    VisualizeCBuffer(input) {
+    VisualizeBuffer(input) {
         let start = window.performance.now();
         let lexer = new Lexer(input);
         let parser = new Parser(lexer);
 
-        let cbuffers = parser.ParseFile();
+        let buffers = parser.ParseFile();
         let parse_timer = window.performance.measure("Parse", { start: start });
-        if (cbuffers.length == 0)
+        if (buffers.length == 0)
             throw new HLSLError("Need at least one Constant Buffer to visualize!", lexer.line, 1, 2000);
 
-        this.layouts = new CBufferLayoutAlgorithm(cbuffers).GenerateLayout();
+        if (buffers[0].isCBuffer)
+            this.layouts = new CBufferLayoutAlgorithm(buffers).GenerateLayout();
+        else
+            this.layouts = new StructuredBufferLayoutAlgorithm(buffers).GenerateLayout();
+
         window.performance.measure("Layout Algorithm", { start: parse_timer.startTime + parse_timer.duration });
 
         this.#DoVisualization();

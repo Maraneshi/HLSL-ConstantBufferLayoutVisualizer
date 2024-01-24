@@ -1,6 +1,6 @@
 export { GetSupportedKeywords } from './cbuffer_parser.js';
-import { CBufferVisualizer } from './cbuffer_visualizer.js';
-export { CBufferVisualizerOptionsDefault } from './cbuffer_visualizer.js';
+import { BufferVisualizer } from './cbuffer_visualizer.js';
+export { BufferVisualizerOptionsDefault } from './cbuffer_visualizer.js';
 import { hlsl_lang_config, hlsl_lang_def } from "./hlsl_monaco.js";
 import { Lexer, TokenType } from './cbuffer_parser.js';
 
@@ -64,7 +64,7 @@ cbuffer example {
         theme: 'vs-dark',
         scrollBeyondLastLine: false
     });
-    parent.style.height = editor.getContentHeight() + 'px';
+    parent.style.height = (editor.getContentHeight() + 16) + 'px';
     window.performance.measure("CreateMonacoEditor", { start: start });
     return editor;
 }
@@ -115,7 +115,7 @@ function DoSyntaxHighlighting(input_node) {
     window.performance.measure("Syntax Highlighting", { start: start });
 }
 
-export class CBufferVisualizerList {
+export class BufferVisualizerList {
     constructor() {
         this.list = [];
     }
@@ -182,11 +182,12 @@ export class CBufferVisualizerList {
 }
 
 export function ParseHLSLAndVisualizeTextNode(input_node, out_text, out_svg, options) {
+    out_text.style = "";
     try {
         let start = window.performance.now();
         let input = input_node.textContent;
-        let viz = new CBufferVisualizer(out_text, out_svg, options);
-        viz.VisualizeCBuffer(input);
+        let viz = new BufferVisualizer(out_text, out_svg, options);
+        viz.VisualizeBuffer(input);
 
         DoSyntaxHighlighting(input_node);
 
@@ -195,6 +196,7 @@ export function ParseHLSLAndVisualizeTextNode(input_node, out_text, out_svg, opt
     }
     catch (error) {
         out_svg.replaceChildren();
+        out_text.style = "white-space:pre-wrap;";
         out_text.replaceChildren(`ERROR(${error.line}:${error.start_column}): ${error.message}`);
         return null;
     }
@@ -202,13 +204,14 @@ export function ParseHLSLAndVisualizeTextNode(input_node, out_text, out_svg, opt
 
 export function ParseHLSLAndVisualizeMonaco(editor, out_text, out_svg, options) {
     let start = window.performance.now();
+    out_text.style = "";
 
     monaco.editor.setModelMarkers(CBV_monaco_editor.getModel(), "owner", []);
 
     try {
         let input = editor.getValue();
-        let viz = new CBufferVisualizer(out_text, out_svg, options);
-        viz.VisualizeCBuffer(input);
+        let viz = new BufferVisualizer(out_text, out_svg, options);
+        viz.VisualizeBuffer(input);
         window.performance.measure("ParseHLSLAndVisualize", { start: start });
         return viz;
     }
@@ -224,6 +227,7 @@ export function ParseHLSLAndVisualizeMonaco(editor, out_text, out_svg, options) 
         monaco.editor.setModelMarkers(CBV_monaco_editor.getModel(), "owner", markers);
         
         out_svg.replaceChildren();
+        out_text.style = "white-space:pre-wrap;";
         out_text.replaceChildren(`ERROR(${error.line}:${error.start_column}): ${error.message}`);
         return null;
     }
