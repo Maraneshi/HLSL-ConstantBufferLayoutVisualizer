@@ -650,11 +650,12 @@
                     The member <code>index</code> is packed directly after <code>normal</code> with no padding and is here to demonstrate again that <code>float3</code> does <em>not</em> actually have a type alignment of 16,
                     otherwise the size of the type itself would have to be padded to 16 as well. In C-like struct packing, the size of a type must always be an integer multiple of its alignment.
                     Otherwise, an array of that type would misalign its elements and a struct containing an overaligned type would have its layout depend on its starting address.
-                    Note that HLSL has extra rules for arrays and structs which we will see later and effectively make this detail irrelevant in constant buffers.
+                    This common rule <em>never</em> applies to types inside constant buffers because those specific problems with arrays and structs are already solved in other ways, which we will see further below in rules #3 and #4,
+                    but let's not get ahead of ourselves.
                     The <code>double4</code> variable is too large for one row even just by itself, but its starting offset is already aligned to 16 bytes without any modification, so it stays where it is.
                 </p>
                 <p>
-                    The above rule is probably the most confusing of them all, because only looking at the offsets may imply an increased type alignment where there is none.
+                    The row-packing rule is probably the most confusing of them all, because only looking at the offsets may imply an increased type alignment where there is none.
                     In other languages, aligning individual variables is usually only relevant for allocating entire buffers when you do SIMD work or want cache or page alignment for other reasons.
                     HLSL is very much the odd one out with its "array of 16-byte aligned rows" design for constant buffers that affects individual struct members, so it takes some time to get used to it.
                     <a href="#fn:cbuffer-history" id="fnref:cbuffer-history"><sup></sup></a>
@@ -745,14 +746,15 @@
                     All the previous rules still apply within the inner struct, in this case the self-alignment requirement for <code>d</code> dictates 4 bytes of padding so it can start at an offset divisible by 8.
                 </p>
                 <p>
-                    Of particular note here is that in C, a struct has a type alignment equivalent to the largest alignment requirement of any of its members.
+                    Of particular note here is that in C (and structured buffers), a struct has a type alignment equivalent to the largest alignment requirement of any of its members.
                     This is to ensure all members are automatically aligned properly when the struct is constructed at an address conforming to the struct's type alignment (also including arrays of structs).
                     If we implemented this example in C, <code>Inner_t</code> would have an alignment of 8 because of the <code>double</code> sub-member and thus a size of 24
                     (the size must be a multiple of its type alignment, leading to 4 bytes of padding at the end inside the struct).
                 </p>
                 <p>
-                    This is <em>not</em> the case in HLSL constant buffers (but it is in structured buffers!). Since the start of any struct is always forcibly aligned to 16 bytes and 16 is larger than any possible
-                    type alignment requirement in HLSL, the concern of having members misaligned is nonexistent and the struct type itself never has any padding before the end to account for some inherent type alignment.
+                    This is <em>not</em> the case in HLSL constant buffers. Since the start of any struct is always forcibly aligned to 16 bytes and 16 is larger than any possible
+                    type alignment requirement in HLSL, the concern of having members misaligned is nonexistent and the struct type itself never has any padding before the end to account for some inherent type alignment
+                    (structs effectively have no type alignment of their own, it's all handled by the forced row alignment).
                     In fact, no type inside a constant buffer can have padding at the start or end within itself that would count towards its size, any padding is always <em>in between</em> variables or array elements.
                     Thus, <code>Inner_t</code> has a size of 20 and <code>after</code> can fit snugly in the remaining 12 bytes of the last buffer row
                     (remember that if it crossed a 16-byte row boundary it would be pushed to start at the next row in accordance with <a href="#rule2">Rule #2</a>).
@@ -825,8 +827,8 @@
                             <a href="#fnref:matrix-order">↩</a>
                         </li>
                         <li id="fn:DXC-packing">
-                            This page has a small error, it first lists the rules for structured buffers, which include "Structs are aligned by the max of it's member alignments", and then says
-                            "legacy" constant buffer rules apply on top of that, which is not true for this specific rule as demonstrated in the example for <a href="#rule4">Rule #4</a>.
+                            Update (2024-26-01): This used to be a footnote pointing out a small error in the DXC Wiki page on buffer packing, but it turns out that I did not read it carefully enough,
+                            which is embarrassing and I apologize. After an exchange with a DXC developer, the linked page is being updated to be more clear and some wording was improved in this article as well.
                             <a href="#fnref:DXC-packing">↩</a>
                         </li>
                     </ol>
