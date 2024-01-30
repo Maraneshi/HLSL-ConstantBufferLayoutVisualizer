@@ -60,12 +60,12 @@
             font-size: 18px;
         }
 
-        #main_article p, #main_article i, #footnotes_list li {
+        #main_article p, #main_article i, .list_justified_spaced li {
             line-height: 1.3;
             text-align: justify;
         }
 
-        #footnotes_list li {
+        .list_justified_spaced li {
             margin-block-end: 0.5em;
         }
 
@@ -295,6 +295,7 @@
                                 <button style="float:right" type="button" onclick="navigator.clipboard.writeText(CBV_Shareable_URL.value);">Copy Link</button>
                                 <br />
                                 <!-- TODO: add checkbox to toggle between cbuffer and "C-like" layout, which will use the existing StructuredBuffer layout -->
+                                <!-- NOTE: we need to indicate *very clearly* that bool is required to be 4 bytes, e.g. by capitalizing it to BOOL in the output -->
                                 <!-- TODO: add a ✔/❌ thing that indicates whether the C and HLSL layouts are the same -->
                                 <label for="CBV_hex_offsets">Hexadecimal Offsets</label>
                                 <input type="checkbox" id="CBV_hex_offsets" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetSVGHexOffsets(this.checked); window.CBV_ExampleVisualizers?.SetSVGHexOffsets(this.checked);" />
@@ -348,7 +349,7 @@
                                 <div>
                                     <b>Updates:</b><br />
                                     <ul style="margin-top: 2px; margin-bottom: 2px; padding-left: 24px;">
-                                        <li>2024-01-24: Structured Buffers are now supported!</li> <!-- TODO: update date -->
+                                        <li>2024-XX-XX: Structured Buffers are now supported!</li> <!-- TODO: update date -->
                                     </ul>
                                 </div>
                             </div>
@@ -404,9 +405,9 @@
             window.GetVisualizerOptions = () => {
                 let options = Object.assign({}, BufferVisualizerOptionsDefault);
                 options.expanded_arrays = CBV_expanded_arrays.checked;
-                options.text_alignment = CBV_text_alignment.value;
+                options.text_alignment = CBV_text_alignment.valueAsNumber;
                 options.color_shuffle = CBV_color_shuffle.checked;
-                options.color_shuffle_subdivisions = CBV_color_shuffle_subdivisions.value;
+                options.color_shuffle_subdivisions = CBV_color_shuffle_subdivisions.valueAsNumber;
                 options.color_lightness = CBV_color_lightness.valueAsNumber;
                 options.color_saturation = CBV_color_saturation.valueAsNumber;
                 options.color_hue_start = CBV_color_hue_start.valueAsNumber;
@@ -548,11 +549,13 @@
                     This article will teach you all the packing rules for constant buffers in HLSL for Direct3D 10 / Shader Model 4.0 or newer. <a href="#fn:DXC" id="fnref:DXC"><sup></sup></a>
                 </p>
                 <p>
-                    Note that these rules are <em>not</em> the same as for HLSL structured buffers (which are pretty much equal to C) or GLSL uniform buffers (called "std140 layout").
+                    Note that these rules are <em>not</em> the same as for HLSL Structured Buffers (which are pretty much equal to C) or GLSL uniform buffers (called "std140 layout").
                     I will compare and contrast with those where appropriate, but explaining all the rules for different languages/buffer types from scratch is beyond the scope of this article.
                     If you want to play around with your own constant buffers and confirm their memory layout, click the big button above (code editor not supported on mobile browsers).
                     There is a similar visualization available for C++ in
-                    <a href="https://devblogs.microsoft.com/visualstudio/size-alignment-and-memory-layout-insights-for-c-classes-structs-and-unions/">Visual Studio 2022 version 17.9</a> (currently in preview as of 18 Jan 2024).
+                    <a href="https://devblogs.microsoft.com/visualstudio/size-alignment-and-memory-layout-insights-for-c-classes-structs-and-unions/">Visual Studio 2022 version 17.9</a> (currently in preview as of 2024-XX-XX).
+                    <br /><b>Update (2024-XX-XX):</b> Structured Buffers are now supported in the visualizer and I have added a <a href="#Structured_Buffers">short explanation of the rules to the end of the article</a>,
+                    including how they <em>can</em> differ from the rules for C structs depending on the platform.
                 </p>
                 <p>
                     Let's start by defining what <dfn>alignment</dfn> means.
@@ -566,7 +569,7 @@
                     In order to maintain proper alignment for all members of a struct/buffer, it may be necessary to add invisible <dfn>padding</dfn> bytes in between them.
                 </p>
                 <p></p>
-                    <div id="CBV_color_theme_controls_inline_container"><i>If you have trouble reading the examples, here are some controls for the colors and a theme switch for the whole site:</i><br /></div>
+                <div id="CBV_color_theme_controls_inline_container"><i>If you have trouble reading the examples, here are some controls for the colors and a theme switch for the whole site:</i><br /></div>
                 <p></p>
                 <h3 id="Type_Alignment">1. Type Alignment</h3>
                 <p class="rule_definition" id="rule1">
@@ -786,7 +789,6 @@
                     <li>
                         <a href="https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules">Packing Rules for Constant Variables (HLSL Reference, Microsoft Learn)</a>
                     </li>
-
                     <li>
                         <a href="https://github.com/microsoft/DirectXShaderCompiler/wiki/Buffer-Packing">Alignment and Buffer Packing (Microsoft DXC GitHub Wiki)</a> <a href="#fn:DXC-packing" id="fnref:DXC-packing"><sup></sup></a>
                     </li>
@@ -798,10 +800,72 @@
                     to the RGA (Radeon GPU Analyzer) compiler (this might not be 100% accurate to live testing due to differences in driver versions and because Compiler Explorer passes the shader to RGA via the SPIR-V
                     backend of DXC).
                 </p>
+                <h3 id="Structured_Buffers">6. Addendum (2024-XX-XX): Structured Buffers and C Structs</h3>
+                <p>
+                    I was originally not going to write about Structured Buffers, but I ended up adding support to the visualizer anyways and all the relevant rules have already been briefly mentioned in the text above.
+                </p>
+                <h4>Rules for HLSL Structured Buffers:</h4>
+                <ol class="rule_definition list_justified_spaced">
+                    <li>All basic types are self-aligned, i.e. their type alignment requirement is equal to their size. <br /><b>Note:</b> <code>bool</code> has a size of 4 bytes in HLSL.</li>
+                    <li>Structures have a type alignment equal to the largest member alignment.</li>
+                    <li>
+                        The size of a type must be an integer multiple of its type alignment. Types not naturally conforming to this rule will be padded at the end to enforce it.
+                        You could say this is the "stride" of a type in an array.
+                        <br /><b>Note:</b> There are no overaligned types (alignment > size) in HLSL and no way to create them (no <code>alignas</code>), so this only ever applies to structs.
+                    </li>
+                    <li>
+                        Array elements are instances of the element type and must therefore obey the above rules for their type alignment.
+                        Beyond that, arrays are packed tightly and do not impose any additional alignment rules or padding on top.
+                    </li>
+                </ol>
+                <p>
+                    The last rule is technically not needed, but is here for clarity. Overall it's quite simple compared to Constant Buffers. Padding can only happen if a larger type follows a smaller type or
+                    at the end of a struct to pad its size to a multiple of its alignment.
+                </p>
+                <p>
+                    These same rules generally also apply to structs in C, C++ and other languages with C-like packing (apart from the HLSL-specific notes). However, the size of some types may differ from platform to platform
+                    (e.g. <code>int</code>, <code>float</code> or <code>bool</code>) and sometimes types are not even self-aligned. The most prominent example for non-self-alignment would be
+                    32-bit x86 Linux-based targets, where <code>double</code> has a size of 8, but only an alignment of 4.
+                    There are many other architectures with uncommon type sizes, formats or alignments, but they're usually embedded systems, 8- or 16-bit and/or DSPs, so not particularly relevant to look at for HLSL programming.
+                    Apart from potentially 32-bit x86 Linux, there are probably no platforms anyone would write HLSL code for where equivalently defined C structs and Structured Buffers differ in their memory layout,
+                    outside of the <code>bool</code> type being a different size.
+                    I will not discuss bitfields here because the rules differ by compiler, platform and language standard and I'm not even sure how they match up with HLSL 2021, use at your own risk.
+                    Let's do one example covering the rules above.
+                </p>
+
+                <div class="CBV_example">
+                    struct ExampleSB {
+                    float before;
+                    struct Inner_t {
+                    double d;
+                    uint16_t u[2];
+                    } inner;
+                    float after;
+                    };
+
+                    StructuredBuffer&lt;ExampleSB&gt; ex;
+                </div>
+                <p>
+                    <!-- TODO: write more shit -->
+                    TODO
+                </p>
+                <div class="CBV_example">
+                    cbuffer ExampleCB {
+                    float before;
+                    struct Inner_t {
+                    double d;
+                    uint16_t u[2];
+                    } inner;
+                    float after;
+                    };
+                </div>
+                <p>
+                    TODO
+                </p>
                 <hr />
                 <aside>
                     <h3 id="Footnotes">Footnotes:</h3>
-                    <ol id="footnotes_list">
+                    <ol class="list_justified_spaced">
                         <li id="fn:DXC">
                             The DXC compiler for D3D12 technically offers a command line flag to disable the "legacy" constant buffer layout rules,
                             but no graphics driver can actually interpret the resulting shader correctly, so it is unusable until we get a new shader model update formalizing the specifications and support properly.
@@ -877,7 +941,7 @@
                     window.CBV_ExampleVisualizers = new BufferVisualizerList();
                     let examples = document.querySelectorAll(".CBV_example");
                     let options = window.GetVisualizerOptions();
-                    options.text_alignment = 22;
+                    options.text_alignment = 28;
                     options.color_shuffle = false;
                     options.expanded_arrays = true;
                     options.svg_width_per_byte *= GetRectScale();

@@ -179,9 +179,9 @@ function LayoutCountStructMembers(struct, expanded_arrays) {
 
 function CreateColoredText(text, color) {
     const span = document.createElement("span");
-    span.setAttribute("style", `color:${color}`);
+    if (color)
+        span.setAttribute("style", `color:${color}`);
     span.append(text);
-    span.original_color = color;
     return span;
 }
 
@@ -215,8 +215,12 @@ class StructPrinter {
         this.text_node.appendChild(text);
         member?.CBV_texts.push(text);
     }
+    AddAlignedTextHeader(header, extra_alignment) {
+        let text = " ".repeat(Math.max(this.alignment + extra_alignment, 0)) + header;
+        this.text_node.appendChild(CreateColoredText(text, undefined));
+    }
     GetOffsetString(offset) {
-        return `${String(offset).padStart(6)}`;
+        return `${String(offset).padStart(3)}`;
     }
     GetSizeString(size) {
         return `${String(size).padStart(4)}`;
@@ -229,7 +233,7 @@ class StructPrinter {
     }
     PrintColoredStructLayout(struct) {
         this.text_node.replaceChildren();
-        this.AddAlignedText(null, "", `${this.GetOffsetString("offset")} ${this.GetSizeString("size")} +pad\n`);
+        this.AddAlignedTextHeader(`offset size +pad\n`, -3 /* padding added to numeric offset minus length of "offset" */);
         this.text_node.lastChild.setAttribute("style", "font-weight: bold;");
         struct.CBV_texts = [];
         this.PrintColoredStructLayoutInternal(struct, null);
@@ -237,7 +241,12 @@ class StructPrinter {
     }
     PrintColoredStructLayoutInternal(struct, parent) {
         let struct_color = this.NextColor();
-        this.AddText(struct, `${struct.isCBuffer ? "cbuffer" : struct.isSBuffer ? "StructuredBuffer" : "struct"} ${struct.type.name} {\n`, struct_color);
+
+        if (struct.isSBuffer)
+            this.AddText(struct, `StructuredBuffer {\n`, struct_color);
+        else
+            this.AddText(struct, `${struct.isCBuffer ? "cbuffer" : "struct"} ${struct.type.name} {\n`, struct_color);
+
         this.indentation++;
         for (let m of struct.submembers) {
             this.PrintColoredLayoutMember(m, struct);
@@ -391,7 +400,7 @@ class StructLayoutVisualizer {
         let width = size_in_bytes * this.width_per_byte - pad * 2;
         let height = this.outer_rect_height - pad * 2;
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        if (this.level == 0)
+        if (level == 0)
             rect.setAttribute("opacity", 0.70);
         rect.setAttribute("stroke", color);
         rect.setAttribute("stroke-width", this.stroke_width);
@@ -413,7 +422,7 @@ class StructLayoutVisualizer {
             text.append(name);
             this.svg_node.append(text);
         }
-        ApplyThemeInnerRect(rect, text, this.dark_theme, this.level);
+        ApplyThemeInnerRect(rect, text, this.dark_theme, level);
         return { rect: rect, text: text };
     }
     AddRectForMember(color_index, member, skip_name = false) {
@@ -667,7 +676,7 @@ export class BufferVisualizer {
         let buffers = parser.ParseFile();
         let parse_timer = window.performance.measure("Parse", { start: start });
         if (buffers.length == 0)
-            throw new HLSLError("Need at least one Constant Buffer to visualize!", lexer.line, 1, 2000);
+            throw new HLSLError("Need at least one buffer to visualize!", lexer.line, 1, 2000);
 
         if (buffers[0].isCBuffer)
             this.layouts = new CBufferLayoutAlgorithm(buffers).GenerateLayout();
