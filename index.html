@@ -297,6 +297,7 @@
                                 <!-- TODO: add checkbox to toggle between cbuffer and "C-like" layout, which will use the existing StructuredBuffer layout -->
                                 <!-- NOTE: we need to indicate *very clearly* that bool is required to be 4 bytes, e.g. by capitalizing it to BOOL in the output -->
                                 <!-- TODO: add a ✔/❌ thing that indicates whether the C and HLSL layouts are the same -->
+                                <!-- TODO: auto text alignment based on longest span -->
                                 <label for="CBV_hex_offsets">Hexadecimal Offsets</label>
                                 <input type="checkbox" id="CBV_hex_offsets" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetSVGHexOffsets(this.checked); window.CBV_ExampleVisualizers?.SetSVGHexOffsets(this.checked);" />
                                 <br />
@@ -305,6 +306,9 @@
                                 <br />
                                 <label for="CBV_text_alignment">Offset Text Alignment:</label>
                                 <input type="number" id="CBV_text_alignment" value="28" min="10" max="200" style="width:2.65em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextAlignment(this.value);" />
+                                <br />
+                                <label for="CBV_text_indent_width">Indent Width:</label>
+                                <input type="number" id="CBV_text_indent_width" value="4" min="1" max="8" style="width:2.65em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextIndentWidth(this.value);" />
                                 <br />
                                 <label for="CBV_color_shuffle">Shuffle Colors</label>
                                 <input type="checkbox" id="CBV_color_shuffle" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetColorShuffle(this.checked);" />
@@ -406,6 +410,7 @@
                 let options = Object.assign({}, BufferVisualizerOptionsDefault);
                 options.expanded_arrays = CBV_expanded_arrays.checked;
                 options.text_alignment = CBV_text_alignment.valueAsNumber;
+                options.text_indent_width = CBV_text_indent_width.valueAsNumber;
                 options.color_shuffle = CBV_color_shuffle.checked;
                 options.color_shuffle_subdivisions = CBV_color_shuffle_subdivisions.valueAsNumber;
                 options.color_lightness = CBV_color_lightness.valueAsNumber;
@@ -941,9 +946,10 @@
                     window.CBV_ExampleVisualizers = new BufferVisualizerList();
                     let examples = document.querySelectorAll(".CBV_example");
                     let options = window.GetVisualizerOptions();
-                    options.text_alignment = 28;
+                    options.text_alignment = 24;
                     options.color_shuffle = false;
                     options.expanded_arrays = true;
+                    options.text_indent_width = 3; // NOTE: make sure we don't overflow the horizontal layout with fonts wider than Consolas
                     options.svg_width_per_byte *= GetRectScale();
 
                     // set up all examples with the template

@@ -186,10 +186,11 @@ function CreateColoredText(text, color) {
 }
 
 class StructPrinter {
-    constructor(text_node, expanded_arrays, alignment, colors) {
+    constructor(text_node, colors, options) {
         this.text_node = text_node;
-        this.expanded_arrays = expanded_arrays;
-        this.alignment = alignment;
+        this.expanded_arrays = options.expanded_arrays;
+        this.alignment = options.text_alignment; // TODO: auto text alignment based on longest span, maybe modify Add*Text to save the data somewhere else first and then add the offset/size/pad at the end
+        this.indent_width = options.text_indent_width;
         this.colors = colors;
         this.indentation = 0;
         this.color_index = 0;
@@ -199,7 +200,7 @@ class StructPrinter {
         return this.color_index++;
     }
     GetIndentationString() {
-        return "    ".repeat(this.indentation);
+        return " ".repeat(this.indent_width * this.indentation);
     }
     AddText(member, str, color_index) {
         let text = CreateColoredText(this.GetIndentationString() + str, this.colors.Get(color_index));
@@ -217,7 +218,9 @@ class StructPrinter {
     }
     AddAlignedTextHeader(header, extra_alignment) {
         let text = " ".repeat(Math.max(this.alignment + extra_alignment, 0)) + header;
-        this.text_node.appendChild(CreateColoredText(text, undefined));
+        let span = CreateColoredText(text, undefined);
+        span.setAttribute("style", "font-weight: bold;");
+        this.text_node.appendChild(span);
     }
     GetOffsetString(offset) {
         return `${String(offset).padStart(3)}`;
@@ -234,7 +237,6 @@ class StructPrinter {
     PrintColoredStructLayout(struct) {
         this.text_node.replaceChildren();
         this.AddAlignedTextHeader(`offset size +pad\n`, -3 /* padding added to numeric offset minus length of "offset" */);
-        this.text_node.lastChild.setAttribute("style", "font-weight: bold;");
         struct.CBV_texts = [];
         this.PrintColoredStructLayoutInternal(struct, null);
         //this.AddAlignedText(null, "size check", `${this.GetOffsetString("")} ${this.GetSizeString(this.check_size)}\n`);
@@ -493,6 +495,7 @@ class StructLayoutVisualizer {
 export const BufferVisualizerOptionsDefault = {
     expanded_arrays: true,
     text_alignment: 28,
+    text_indent_width: 4,
     color_shuffle: false,
     color_shuffle_subdivisions: 4,
     color_lightness: 0.6,
@@ -559,7 +562,7 @@ export class BufferVisualizer {
     }
     #DoColoredText() {
         let start = window.performance.now();
-        let printer = new StructPrinter(this.out_text, this.options.expanded_arrays, this.options.text_alignment, this.colors);
+        let printer = new StructPrinter(this.out_text, this.colors, this.options);
         printer.PrintColoredStructLayout(this.layouts[0]);
         window.performance.measure("DoColoredText", { start:start });
     }
@@ -693,6 +696,12 @@ export class BufferVisualizer {
     }
     SetTextAlignment(text_alignment) {
         this.options.text_alignment = text_alignment;
+        this.#RemoveEventListeners();
+        this.#DoColoredText();
+        this.#AddEventListeners();
+    }
+    SetTextIndentWidth(text_indent_width) {
+        this.options.text_indent_width = text_indent_width;
         this.#RemoveEventListeners();
         this.#DoColoredText();
         this.#AddEventListeners();

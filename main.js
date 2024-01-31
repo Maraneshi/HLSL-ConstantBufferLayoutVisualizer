@@ -69,7 +69,7 @@ cbuffer example {
     return editor;
 }
 
-function DoSyntaxHighlighting(input_node) {
+function DoSyntaxHighlighting(input_node, options) {
     // Recreate the original code with proper formatting and syntax highlighting.
     // This sucks, but not as much as having to make the spans by hand.
     let start = window.performance.now();
@@ -107,7 +107,7 @@ function DoSyntaxHighlighting(input_node) {
         else if (next && next.type == '}')
             indent--;
 
-        let indent_str = "    ".repeat(indent);
+        let indent_str = " ".repeat(indent * options.text_indent_width);
 
         if (t.type == '{' || t.type == ';')
             input_node.append('\n' + indent_str);
@@ -189,7 +189,7 @@ export function ParseHLSLAndVisualizeTextNode(input_node, out_text, out_svg, opt
         let viz = new BufferVisualizer(out_text, out_svg, options);
         viz.VisualizeBuffer(input);
 
-        DoSyntaxHighlighting(input_node);
+        DoSyntaxHighlighting(input_node, options);
 
         window.performance.measure("ParseHLSLAndVisualize", { start: start });
         return viz;
