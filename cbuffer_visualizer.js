@@ -189,7 +189,8 @@ class StructPrinter {
     constructor(text_node, colors, options) {
         this.text_node = text_node;
         this.expanded_arrays = options.expanded_arrays;
-        this.alignment = options.text_alignment; // TODO: auto text alignment based on longest span, maybe modify Add*Text to save the data somewhere else first and then add the offset/size/pad at the end
+        this.alignment_offset = options.text_alignment_offset;
+        this.alignment_min = options.text_alignment_min;
         this.indent_width = options.text_indent_width;
         this.colors = colors;
         this.indentation = 0;
@@ -210,16 +211,19 @@ class StructPrinter {
     }
     AddAlignedText(member, prefix, suffix, color_index) {
         prefix = this.GetIndentationString() + prefix;
-        suffix = " ".repeat(Math.max(this.alignment - prefix.length, 1)) + suffix;
-        let text = CreateColoredText(prefix + suffix, this.colors.Get(color_index));
+        let text = CreateColoredText(prefix, this.colors.Get(color_index));
+        // save aligned suffix for later
+        text.CBV_suffix = suffix;
         text.CBV_color_index = color_index;
         this.text_node.appendChild(text);
         member?.CBV_texts.push(text);
     }
     AddAlignedTextHeader(header, extra_alignment) {
-        let text = " ".repeat(Math.max(this.alignment + extra_alignment, 0)) + header;
-        let span = CreateColoredText(text, undefined);
+        let span = CreateColoredText("", undefined);
         span.setAttribute("style", "font-weight: bold;");
+        // save aligned suffix for later
+        span.CBV_suffix = header;
+        span.CBV_extra_alignment = extra_alignment;
         this.text_node.appendChild(span);
     }
     GetOffsetString(offset) {
@@ -240,6 +244,22 @@ class StructPrinter {
         struct.CBV_texts = [];
         this.PrintColoredStructLayoutInternal(struct, null);
         //this.AddAlignedText(null, "size check", `${this.GetOffsetString("")} ${this.GetSizeString(this.check_size)}\n`);
+
+        // find longest line
+        let max_len = 0;
+        for (let child of this.text_node.children) {
+            if (child.CBV_suffix)
+                max_len = Math.max(max_len, child.textContent.length);
+        }
+        // add suffix aligned to longest line + offset
+        for (let child of this.text_node.children) {
+            if (child.CBV_suffix) {
+                let len = max_len - child.textContent.length;
+                let offset = this.alignment_offset + (child.CBV_extra_alignment ?? 0);
+                let min = Math.max(this.alignment_min - child.textContent.length + (child.CBV_extra_alignment ?? 0), 0);
+                child.append(" ".repeat(Math.max(len + offset, min)) + child.CBV_suffix);
+            }
+        }
     }
     PrintColoredStructLayoutInternal(struct, parent) {
         let struct_color = this.NextColor();
@@ -493,8 +513,11 @@ class StructLayoutVisualizer {
 };
 
 export const BufferVisualizerOptionsDefault = {
+    force_c_layout: false,
+    check_matches_c_layout: true,
     expanded_arrays: true,
-    text_alignment: 28,
+    text_alignment_min: 0,
+    text_alignment_offset: 6,
     text_indent_width: 4,
     color_shuffle: false,
     color_shuffle_subdivisions: 4,
@@ -507,7 +530,13 @@ export const BufferVisualizerOptionsDefault = {
     svg_hex_offsets: false,
     dark_theme: true
 };
-
+class MemberRecord {
+    constructor(name, offset, size) {
+        this.name = name;
+        this.offset = offset;
+        this.size = size;
+    }
+};
 export class BufferVisualizer {
     constructor(out_text, out_svg, options) {
         this.out_text = out_text;
@@ -516,9 +545,9 @@ export class BufferVisualizer {
     }
     #GetColors() {
         let start = window.performance.now();
-        let member_count = LayoutCountStructMembers(this.layouts[0], this.options.expanded_arrays);
+        let member_count = LayoutCountStructMembers(this.layout, this.options.expanded_arrays);
         this.colors = new ColorArray(member_count, this.options);
-        window.performance.measure("GetColors", { start:start });
+        window.performance.measure("GetColors", { start: start });
     }
     #ReEvaluateColors() {
         let start = window.performance.now();
@@ -533,7 +562,7 @@ export class BufferVisualizer {
                 span.style.color = this.colors.Get(span.CBV_color_index);
             }
         }
-        window.performance.measure("ReEvaluateColors", { start:start });
+        window.performance.measure("ReEvaluateColors", { start: start });
     }
     #ApplyTheme() {
         let start = window.performance.now();
@@ -558,24 +587,24 @@ export class BufferVisualizer {
                 span.style.color = this.colors.Get(span.CBV_color_index);
             }
         }
-        window.performance.measure("ApplyTheme", { start:start });
+        window.performance.measure("ApplyTheme", { start: start });
     }
     #DoColoredText() {
         let start = window.performance.now();
         let printer = new StructPrinter(this.out_text, this.colors, this.options);
-        printer.PrintColoredStructLayout(this.layouts[0]);
-        window.performance.measure("DoColoredText", { start:start });
+        printer.PrintColoredStructLayout(this.layout);
+        window.performance.measure("DoColoredText", { start: start });
     }
     #DoColoredRects() {
         let start = window.performance.now();
         let viz = new StructLayoutVisualizer(this.out_svg, this.out_text, this.colors, this.options);
-        viz.VisualizeLayout(this.layouts[0]);
-        window.performance.measure("DoColoredRects", { start:start });
+        viz.VisualizeLayout(this.layout);
+        window.performance.measure("DoColoredRects", { start: start });
     }
-    static #RecurseLayout(layout, func) {
-        func(layout);
+    static #RecurseLayout(layout, func, context = null) {
+        func(layout, context);
         for (let m of layout.submembers) {
-            BufferVisualizer.#RecurseLayout(m, func);
+            BufferVisualizer.#RecurseLayout(m, func, context);
         }
     }
     #RemoveEventListeners() {
@@ -601,7 +630,7 @@ export class BufferVisualizer {
             }
         };
 
-        BufferVisualizer.#RecurseLayout(this.layouts[0], remove_event_listeners);
+        BufferVisualizer.#RecurseLayout(this.layout, remove_event_listeners);
 
         window.performance.measure("RemoveEventListeners", { start: start });
     }
@@ -658,9 +687,39 @@ export class BufferVisualizer {
             }
         };
 
-        BufferVisualizer.#RecurseLayout(this.layouts[0], add_event_listeners);
-        
+        BufferVisualizer.#RecurseLayout(this.layout, add_event_listeners);
+
         window.performance.measure("AddEventListeners", { start: start });
+    }
+    #CompareLayouts(a, b) {
+        let members_a = [];
+        let members_b = [];
+
+        let RecordLayoutOffsetsSizes = (member, records) => {
+            let size = member.size;
+            // remove padding from end of inner structs because it doesn't matter for correctness whether the padding is inside or outside the type
+            if (member.type instanceof StructType && !member.isGlobal) {
+                let last_submember = member.submembers[member.submembers.length - 1];
+                if (last_submember.padding > 0) {
+                    size = member.size - last_submember.padding;
+                }
+            }
+            // don't bother looking at arrays themselves, only the elements within them matter
+            if (!(member.type instanceof ArrayType)) {
+                records.push(new MemberRecord(member.name, member.offset, size));
+            }
+        };
+
+        BufferVisualizer.#RecurseLayout(a, RecordLayoutOffsetsSizes, members_a);
+        BufferVisualizer.#RecurseLayout(b, RecordLayoutOffsetsSizes, members_b);
+
+        for (let i = 0; i < members_a.length; i++) {
+            if ((members_a[i].offset != members_b[i].offset) || (members_a[i].size != members_b[i].size))
+                return false;
+        }
+
+        return true;
+
     }
     #DoVisualization() {
         let start = window.performance.now();
@@ -669,33 +728,67 @@ export class BufferVisualizer {
         this.#DoColoredRects();
         this.#AddEventListeners();
 
-        window.performance.measure("DoVisualization", { start:start });
+        window.performance.measure("DoVisualization", { start: start });
+    }
+    #DoLayout() {
+        let start = window.performance.now();
+
+        let calc_cbuffer_layout = this.buffers[0].isCBuffer && (this.options.check_matches_c_layout || !this.options.force_c_layout);
+        let calc_sbuffer_layout = !this.buffers[0].isCBuffer || this.options.check_matches_c_layout || this.options.force_c_layout;
+        
+        let cbuffer_layout = null;
+        let sbuffer_layout = null;
+        if (calc_cbuffer_layout)
+            cbuffer_layout = new CBufferLayoutAlgorithm(this.buffers).GenerateLayout()[0];
+        if (calc_sbuffer_layout)
+            sbuffer_layout = new StructuredBufferLayoutAlgorithm(this.buffers).GenerateLayout()[0];
+
+        if (this.options.force_c_layout) {
+            sbuffer_layout.isSBuffer = false;
+            this.layout = sbuffer_layout;
+        }
+        else if (this.buffers[0].isCBuffer)
+            this.layout = cbuffer_layout;
+        else
+            this.layout = sbuffer_layout;
+
+        let matches_c_layout = true;
+        if (this.options.check_matches_c_layout && cbuffer_layout)
+            matches_c_layout = this.#CompareLayouts(cbuffer_layout, sbuffer_layout);
+
+        window.performance.measure("Layout Algorithm", { start: start });
+
+        return matches_c_layout;
     }
     VisualizeBuffer(input) {
         let start = window.performance.now();
+
+        this.input = input;
         let lexer = new Lexer(input);
-        let parser = new Parser(lexer);
+        let parser = new Parser(lexer, this.options.force_c_layout);
 
-        let buffers = parser.ParseFile();
-        let parse_timer = window.performance.measure("Parse", { start: start });
-        if (buffers.length == 0)
+        this.buffers = parser.ParseFile();
+        if (this.buffers.length == 0)
             throw new HLSLError("Need at least one buffer to visualize!", lexer.line, 1, 2000);
+        
+        window.performance.measure("Parse", { start: start });
 
-        if (buffers[0].isCBuffer)
-            this.layouts = new CBufferLayoutAlgorithm(buffers).GenerateLayout();
-        else
-            this.layouts = new StructuredBufferLayoutAlgorithm(buffers).GenerateLayout();
-
-        window.performance.measure("Layout Algorithm", { start: parse_timer.startTime + parse_timer.duration });
+        let matches_c_layout = this.#DoLayout();
 
         this.#DoVisualization();
+
+        return matches_c_layout;
+    }
+    SetForceCLayout(force_c_layout) {
+        this.options.force_c_layout = force_c_layout;
+        this.VisualizeBuffer(this.input);
     }
     SetExpandedArrays(expanded_arrays) {
         this.options.expanded_arrays = expanded_arrays;
         this.#DoVisualization();
     }
-    SetTextAlignment(text_alignment) {
-        this.options.text_alignment = text_alignment;
+    SetTextAlignmentOffset(text_alignment_offset) {
+        this.options.text_alignment_offset = text_alignment_offset;
         this.#RemoveEventListeners();
         this.#DoColoredText();
         this.#AddEventListeners();

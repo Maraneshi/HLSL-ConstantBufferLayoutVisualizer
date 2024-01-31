@@ -250,7 +250,9 @@ export class BuiltinType {
         this.vectorsize = (vectorsize == undefined) ? 1 : vectorsize;
         this.created_from_matrix = created_from_matrix;
     }
-    static Create(type, vectorsize, created_from_matrix = false) {
+    static Create(type, vectorsize, force_c_types, created_from_matrix = false) {
+        if (type == "bool" && force_c_types) // rename "bool" to "BOOL" for C layout to indicate 4 byte type
+            type = "BOOL";
         let t = types_builtin[type];
         return new BuiltinType(vectorsize == 1 ? t.name : t.name + vectorsize, t.elementsize, t.alignment, vectorsize, created_from_matrix);
     }
@@ -281,10 +283,11 @@ const types_builtin = {
     "uint": new BuiltinType("uint", 4, 4),
     "double": new BuiltinType("double", 8, 8),
     "bool": new BuiltinType("bool", 4, 4),
+    "BOOL": new BuiltinType("BOOL", 4, 4), // NOTE: for C layouts
 };
 
 export class Parser {
-    constructor(lexer) {
+    constructor(lexer, force_c_types) {
         this.index = -1;
         this.lexer = lexer;
         this.tokens = lexer.GetAllTokens();
@@ -293,6 +296,7 @@ export class Parser {
         this.buffers = [];
         this.typedefs = [];
         this.counter = 0;
+        this.force_c_types = force_c_types;
     }
     GetNext() {
         return this.Consume();
@@ -472,8 +476,10 @@ export class Parser {
                 else if (token_type == TokenType.Keywords.StructuredBuffer) { // StructuredBuffer<T>, accepts any type T except inline struct definitions
                     this.Expect('<');
                     let template_type = this.ParseNonStructType(); // NOTE: unlike the name implies, this can still return a struct type defined elsewhere, just not inline structs
+                    if (!template_type)
+                        throw HLSLError.CreateFromToken(`cannot find type named '${this.curToken.value}'`, this.curToken);
                     this.Expect('>');
-
+                    
                     variable_name_token = this.Expect(TokenType.Identifier);
                     while (this.Accept('[')) {
                         this.ParseInteger();
@@ -565,7 +571,7 @@ export class Parser {
             if (name.startsWith(t)) {
                 if (name == t) {
                     if (typenames_unsupported.indexOf(t) != -1) throw HLSLError.CreateFromToken(`unsupported type '${this.curToken.value}'`, this.curToken);
-                    return BuiltinType.Create(t, 1);
+                    return BuiltinType.Create(t, 1, this.force_c_types);
                 }
 
                 let suffix = name.substring(t.length);
@@ -573,7 +579,7 @@ export class Parser {
                     let vectorsize = Number(suffix[0]);
                     this.CheckSize(vectorsize, suffix[0], "vector size");
                     if (typenames_unsupported.indexOf(t) != -1) throw HLSLError.CreateFromToken(`unsupported type '${this.curToken.value}'`, this.curToken);
-                    return BuiltinType.Create(t, vectorsize);
+                    return BuiltinType.Create(t, vectorsize, this.force_c_types);
                 }
                 else if (suffix.length == 3 && IsDigit(suffix[0]) && suffix[1] == 'x' && IsDigit(suffix[2])) {
                     let rows = Number(suffix[0]);
@@ -584,7 +590,7 @@ export class Parser {
                     let vectorsize = is_row_major ? cols : rows;
                     let arraysize = is_row_major ? rows : cols;
                     if (typenames_unsupported.indexOf(t) != -1) throw HLSLError.CreateFromToken(`unsupported type '${this.curToken.value}'`, this.curToken);
-                    let vector_type = BuiltinType.Create(t, vectorsize, true);
+                    let vector_type = BuiltinType.Create(t, vectorsize, this.force_c_types, true);
                     if (arraysize == 1)
                         return vector_type; // typeNx1 matrices are layout equivalent to just typeN, not typeN[1]
                     else
@@ -641,14 +647,14 @@ export class Parser {
                 vectorsize = arraysize;
                 arraysize = tmp;
             }
-            let vector_type = BuiltinType.Create(scalar_type, vectorsize, true);
+            let vector_type = BuiltinType.Create(scalar_type, vectorsize, this.force_c_types, true);
             if (arraysize == 1)
                 return vector_type; // typeNx1 matrices are layout equivalent to just typeN, not typeN[1]
             else
                 return new ArrayType(vector_type, arraysize, true);
         }
         else {
-            return BuiltinType.Create(scalar_type, vectorsize);
+            return BuiltinType.Create(scalar_type, vectorsize, this.force_c_types);
         }
     }
     ParseArrayType(member_type) {

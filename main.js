@@ -127,9 +127,9 @@ export class BufferVisualizerList {
             viz.SetExpandedArrays(expanded_arrays);
         }
     }
-    SetTextAlignment(text_alignment) {
+    SetTextAlignmentOffset(text_alignment_offset) {
         for (let viz of this.list) {
-            viz.SetTextAlignment(text_alignment);
+            viz.SetTextAlignmentOffset(text_alignment_offset);
         }
     }
     SetSVGWidthPerByte(svg_width_per_byte) {
@@ -211,7 +211,8 @@ export function ParseHLSLAndVisualizeMonaco(editor, out_text, out_svg, options) 
     try {
         let input = editor.getValue();
         let viz = new BufferVisualizer(out_text, out_svg, options);
-        viz.VisualizeBuffer(input);
+        let matches_c_layout = viz.VisualizeBuffer(input);
+        CBV_matches_c_layout.value = matches_c_layout ? "✔" : "❌";
         window.performance.measure("ParseHLSLAndVisualize", { start: start });
         return viz;
     }

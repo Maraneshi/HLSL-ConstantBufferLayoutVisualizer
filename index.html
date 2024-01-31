@@ -285,7 +285,7 @@
                                 <button type="submit" style="margin-right:4px;">Parse</button>
                                 <label for="CBV_auto_parse_delay">Auto-Parse Delay:</label>
                                 <input type="range" id="CBV_auto_parse_delay" min="100" max="1500" step="50" value="500" autocomplete="off" style="width:90px;"
-                                       oninput="if (this.value == this.getAttribute('max')) CBV_auto_parse_delay_value.value = 'off'; else CBV_auto_parse_delay_value.value = this.value + 'ms';" />
+                                       oninput="if (this.valueAsNumber == this.getAttribute('max')) CBV_auto_parse_delay_value.value = 'off'; else CBV_auto_parse_delay_value.value = this.value + 'ms';" />
                                 <output id="CBV_auto_parse_delay_value"></output>
                                 <script>CBV_auto_parse_delay_value.value = CBV_auto_parse_delay.value + 'ms';</script>
                                 <br />
@@ -294,10 +294,12 @@
                                 <button type="button" onclick="window.CBV_Create_Shareable_URL();">Create Shareable Link</button>
                                 <button style="float:right" type="button" onclick="navigator.clipboard.writeText(CBV_Shareable_URL.value);">Copy Link</button>
                                 <br />
-                                <!-- TODO: add checkbox to toggle between cbuffer and "C-like" layout, which will use the existing StructuredBuffer layout -->
-                                <!-- NOTE: we need to indicate *very clearly* that bool is required to be 4 bytes, e.g. by capitalizing it to BOOL in the output -->
-                                <!-- TODO: add a ✔/❌ thing that indicates whether the C and HLSL layouts are the same -->
-                                <!-- TODO: auto text alignment based on longest span -->
+                                <label for="CBV_matches_c_layout">Matches C Layout<a href="#c_layout_notes">*</a></label>
+                                <output id="CBV_matches_c_layout">❌</output>
+                                <br />
+                                <label for="CBV_show_c_layout">Show C Layout<a href="#c_layout_notes">*</a></label>
+                                <input type="checkbox" id="CBV_show_c_layout" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetForceCLayout(this.checked);" />
+                                <br />
                                 <label for="CBV_hex_offsets">Hexadecimal Offsets</label>
                                 <input type="checkbox" id="CBV_hex_offsets" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetSVGHexOffsets(this.checked); window.CBV_ExampleVisualizers?.SetSVGHexOffsets(this.checked);" />
                                 <br />
@@ -305,16 +307,16 @@
                                 <input type="checkbox" id="CBV_expanded_arrays" checked autocomplete="off" onchange="window.CBV_VisualizerObject?.SetExpandedArrays(this.checked);" />
                                 <br />
                                 <label for="CBV_text_alignment">Offset Text Alignment:</label>
-                                <input type="number" id="CBV_text_alignment" value="28" min="10" max="200" style="width:2.65em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextAlignment(this.value);" />
+                                <input type="number" id="CBV_text_alignment" value="6" min="1" max="32" style="width:2.65em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextAlignmentOffset(this.valueAsNumber);" />
                                 <br />
                                 <label for="CBV_text_indent_width">Indent Width:</label>
-                                <input type="number" id="CBV_text_indent_width" value="4" min="1" max="8" style="width:2.65em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextIndentWidth(this.value);" />
+                                <input type="number" id="CBV_text_indent_width" value="4" min="1" max="8" style="width:2.65em;" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetTextIndentWidth(this.valueAsNumber);" />
                                 <br />
                                 <label for="CBV_color_shuffle">Shuffle Colors</label>
                                 <input type="checkbox" id="CBV_color_shuffle" autocomplete="off" onchange="window.CBV_VisualizerObject?.SetColorShuffle(this.checked);" />
                                 <br />
                                 <label for="CBV_color_shuffle_subdivisions">Color Shuffle Subdivisions:</label>
-                                <input type="number" id="CBV_color_shuffle_subdivisions" value="4" min="1" max="10" style="width:2.65em" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetColorShuffleSubdivisions(this.value);" />
+                                <input type="number" id="CBV_color_shuffle_subdivisions" value="4" min="1" max="10" style="width:2.65em" autocomplete="off" oninput="window.CBV_VisualizerObject?.SetColorShuffleSubdivisions(this.valueAsNumber);" />
                                 <br />
                                 <div id="CBV_color_theme_controls_visualizer_container">
                                     <div id="CBV_color_theme_controls">
@@ -350,6 +352,17 @@
                                     <b>Supported Keywords:</b><br />
                                     <span id="CBV_keywords_text" class="code" style="white-space:pre-wrap"></span>
                                 </p>
+                                <p id="c_layout_notes" style="margin-bottom: 4px;">
+                                    <b>* Note:</b> C layout is based on the Structured Buffer layout rules, which are outlined in <a href="#Structured_Buffers">this section at the end of the article</a>.
+                                    It assumes a "reasonable" modern platform where the following applies:<br />
+                                </p>
+                                    <ul style="margin-top: 4px; margin-bottom: 2px; padding-left: 24px;">
+                                        <li><code>int</code>, <code>uint</code> and <code>float</code> are 4 bytes, <code>double</code> is 8 bytes</li>
+                                        <li>You are using a 4-byte <code>BOOL</code> type instead of the built-in <code>bool</code></li>
+                                        <li>All scalar types are self-aligned</li>
+                                        <li>Vectors are implemented as simple structs of individual scalars or arrays of scalars, e.g. <code>struct float4 { float x,y,z,w; }</code> or <code>struct float4 { float f[4]; }</code></li>
+                                    </ul>
+                                <p></p>
                                 <div>
                                     <b>Updates:</b><br />
                                     <ul style="margin-top: 2px; margin-bottom: 2px; padding-left: 24px;">
@@ -408,8 +421,9 @@
 
             window.GetVisualizerOptions = () => {
                 let options = Object.assign({}, BufferVisualizerOptionsDefault);
+                options.force_c_layout = CBV_show_c_layout.checked;
                 options.expanded_arrays = CBV_expanded_arrays.checked;
-                options.text_alignment = CBV_text_alignment.valueAsNumber;
+                options.text_alignment_offset = CBV_text_alignment.valueAsNumber;
                 options.text_indent_width = CBV_text_indent_width.valueAsNumber;
                 options.color_shuffle = CBV_color_shuffle.checked;
                 options.color_shuffle_subdivisions = CBV_color_shuffle_subdivisions.valueAsNumber;
@@ -417,6 +431,7 @@
                 options.color_saturation = CBV_color_saturation.valueAsNumber;
                 options.color_hue_start = CBV_color_hue_start.valueAsNumber;
                 options.color_hue_range = CBV_color_hue_range.valueAsNumber;
+                options.svg_hex_offsets = CBV_hex_offsets.checked;
                 options.dark_theme = CBV_dark_theme.checked;
                 return options;
             }
@@ -448,9 +463,9 @@
                     }
 
                     window.CBV_monaco_editor.getModel().onDidChangeContent(() => {
-                        if (CBV_auto_parse_delay.value != CBV_auto_parse_delay.getAttribute("max")) {
+                        if (CBV_auto_parse_delay.valueAsNumber != CBV_auto_parse_delay.getAttribute("max")) {
                             clearTimeout(window.CBV_parse_timer);
-                            window.CBV_parse_timer = setTimeout(CBV_VisualizeCBuffer, CBV_auto_parse_delay.value);
+                            window.CBV_parse_timer = setTimeout(CBV_VisualizeCBuffer, CBV_auto_parse_delay.valueAsNumber);
                         }
                     });
                     //window.CBV_monaco_editor.onDidContentSizeChange(() => { // broken
@@ -812,7 +827,7 @@
                 <h4>Rules for HLSL Structured Buffers:</h4>
                 <ol class="rule_definition list_justified_spaced">
                     <li>All basic types are self-aligned, i.e. their type alignment requirement is equal to their size. <br /><b>Note:</b> <code>bool</code> has a size of 4 bytes in HLSL.</li>
-                    <li>Structures have a type alignment equal to the largest member alignment.</li>
+                    <li>Structures have a type alignment equal to the largest alignment among all of their members.</li>
                     <li>
                         The size of a type must be an integer multiple of its type alignment. Types not naturally conforming to this rule will be padded at the end to enforce it.
                         You could say this is the "stride" of a type in an array.
@@ -867,7 +882,9 @@
                 <p>
                     TODO
                 </p>
+
                 <hr />
+
                 <aside>
                     <h3 id="Footnotes">Footnotes:</h3>
                     <ol class="list_justified_spaced">
@@ -946,7 +963,9 @@
                     window.CBV_ExampleVisualizers = new BufferVisualizerList();
                     let examples = document.querySelectorAll(".CBV_example");
                     let options = window.GetVisualizerOptions();
-                    options.text_alignment = 24;
+                    options.check_matches_c_layout = false;
+                    options.text_alignment_min = 24;
+                    options.text_alignment_offset = 1;
                     options.color_shuffle = false;
                     options.expanded_arrays = true;
                     options.text_indent_width = 3; // NOTE: make sure we don't overflow the horizontal layout with fonts wider than Consolas
@@ -954,6 +973,7 @@
 
                     // set up all examples with the template
                     for (let i = 0; i < examples.length; i++) {
+                        let options_clone = Object.assign({}, options); // clone options because they're logically supposed to be separate objects
                         let clone = CBV_example_template.content.cloneNode(true);
                         let input = clone.querySelector("#CBV_example_input");
                         let output_text = clone.querySelector("#CBV_example_output_text");
@@ -963,7 +983,7 @@
                         output_svg.id = output_svg.id + i;
                         input.textContent = examples[i].textContent;
                         examples[i].replaceChildren(clone);
-                        window.CBV_ExampleVisualizers.Push(ParseHLSLAndVisualizeTextNode(input, output_text, output_svg, options));
+                        window.CBV_ExampleVisualizers.Push(ParseHLSLAndVisualizeTextNode(input, output_text, output_svg, options_clone));
                     }
 
                 </script>
