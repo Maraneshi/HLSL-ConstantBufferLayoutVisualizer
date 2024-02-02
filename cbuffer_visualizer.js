@@ -279,7 +279,7 @@ class StructPrinter {
                 this.AddAlignedText(parent, `} ${parent.name}[${parent.submembers.length}];`, `${this.GetOffSizePadString(parent.offset, parent.size, parent.padding)}\n`, struct_color);
             }
             else {
-                this.AddAlignedText(struct, `} ${struct.name};`, `${this.GetOffSizePadString(struct.isGlobal ? "" : struct.offset, struct.size, struct.padding)}\n`, struct_color);
+                this.AddAlignedText(struct, `} ${struct.name};`, struct.isSBuffer ? "" : `${this.GetOffSizePadString(struct.isGlobal ? "" : struct.offset, struct.size, struct.padding)}\n`, struct_color);
                 this.check_size += struct.padding;
             }
         }

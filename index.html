@@ -366,7 +366,7 @@
                                 <div>
                                     <b>Updates:</b><br />
                                     <ul style="margin-top: 2px; margin-bottom: 2px; padding-left: 24px;">
-                                        <li>2024-XX-XX: Structured Buffers are now supported!</li> <!-- TODO: update date -->
+                                        <li>2024-XX-XX: Structured Buffers are now supported!</li> <!-- TODO: update date, write a few more words maybe? -->
                                     </ul>
                                 </div>
                             </div>
@@ -822,12 +822,13 @@
                 </p>
                 <h3 id="Structured_Buffers">6. Addendum (2024-XX-XX): Structured Buffers and C Structs</h3>
                 <p>
-                    I was originally not going to write about Structured Buffers, but I ended up adding support to the visualizer anyways and all the relevant rules have already been briefly mentioned in the text above.
+                    I was originally not going to write about Structured Buffers, but I ended up adding support to the visualizer anyways and all the relevant rules have already been briefly mentioned in the chapters above.
                 </p>
                 <h4>Rules for HLSL Structured Buffers:</h4>
                 <ol class="rule_definition list_justified_spaced">
-                    <li>All basic types are self-aligned, i.e. their type alignment requirement is equal to their size. <br /><b>Note:</b> <code>bool</code> has a size of 4 bytes in HLSL.</li>
-                    <li>Structures have a type alignment equal to the largest alignment among all of their members.</li>
+                    <li>All scalar types are self-aligned, i.e. their type alignment requirement is equal to their size. <br /><b>Note:</b> <code>bool</code> has a size of 4 bytes in HLSL.</li>
+                    <li>Vectors and matrices are aligned according to their scalar component type.</li>
+                    <li>Structures have a type alignment equal to the largest alignment among all of their members. <a href="#fn:struct-variable-alignment" id="fnref:struct-variable-alignment"><sup></sup></a></li>
                     <li>
                         The size of a type must be an integer multiple of its type alignment. Types not naturally conforming to this rule will be padded at the end to enforce it.
                         You could say this is the "stride" of a type in an array.
@@ -839,8 +840,8 @@
                     </li>
                 </ol>
                 <p>
-                    The last rule is technically not needed, but is here for clarity. Overall it's quite simple compared to Constant Buffers. Padding can only happen if a larger type follows a smaller type or
-                    at the end of a struct to pad its size to a multiple of its alignment.
+                    Overall it's quite simple compared to Constant Buffers. Arrays, vectors and matrices really just fall back to the scalar and struct alignment rules, the extra rules for them are not technically needed
+                    and are just here for clarity. Padding can only happen if a larger type follows a smaller type or at the end of a struct to pad its size to a multiple of its alignment.
                 </p>
                 <p>
                     These same rules generally also apply to structs in C, C++ and other languages with C-like packing (apart from the HLSL-specific notes). However, the size of some types may differ from platform to platform
@@ -850,14 +851,17 @@
                     Apart from potentially 32-bit x86 Linux, there are probably no platforms anyone would write HLSL code for where equivalently defined C structs and Structured Buffers differ in their memory layout,
                     outside of the <code>bool</code> type being a different size.
                     I will not discuss bitfields here because the rules differ by compiler, platform and language standard and I'm not even sure how they match up with HLSL 2021, use at your own risk.
-                    Let's do one example covering the rules above.
+                </p>
+                <p>
+                    Let's do one example covering the rules above:
                 </p>
 
                 <div class="CBV_example">
                     struct ExampleSB {
                     float before;
                     struct Inner_t {
-                    double d;
+                    float start;
+                    double lorg;
                     uint16_t u[2];
                     } inner;
                     float after;
@@ -866,21 +870,34 @@
                     StructuredBuffer&lt;ExampleSB&gt; ex;
                 </div>
                 <p>
-                    <!-- TODO: write more shit -->
-                    TODO
+                    The <code>double</code> member of the inner struct in this example not only needs to be aligned to a multiple of 8 itself, it is also the member with the largest alignment within the struct.
+                    If we took the members out of the inner struct, <code>start</code> could be at offset 4, <code>lorg</code> could be at offset 8, etc. and we would in fact have <em>no padding at all</em> inside the entire buffer.
+                    However, as a consequence of the third rule for structured buffers, the inner struct is also assigned a type alignment of 8 and it must start at offset 8 here, despite its first member not needing that strong of an alignment.
+                    Thus, we need 4 bytes of padding before the struct and another 4 bytes before <code>lorg</code> to align them both correctly. Arrays are thankfully tightly packed in this type of buffer, so we don't directly provoke
+                    any extra padding for <code>u</code>. Still, we need to pad out the inner struct to a multiple of its alignment, so we do end up with another extra 4 bytes after the array.
+                    The "largest member alignment" rule also goes for the outer struct, so it too is allotted an alignment of 8 (from the <code>inner</code> member, which itself inherited it from <code>lorg</code>) and we need to pad out
+                    the very end of the struct. This is important because structured buffers are conceptually arrays of the type given in the template, so that padding at the end actually matters for the access stride.
+                </p>
+                <p>
+                    This example is definitely an extreme case, usually there is very little if any padding at all in structured buffers given the common use cases and types used in HLSL, but since the rules for C/C++ are mostly the same,
+                    this type of analysis can still be useful. As always, the examples are for illustrative purposes.
+                    The same struct in a constant buffer would look like this:
                 </p>
                 <div class="CBV_example">
                     cbuffer ExampleCB {
                     float before;
                     struct Inner_t {
-                    double d;
+                    float start;
+                    double lorg;
                     uint16_t u[2];
                     } inner;
                     float after;
                     };
                 </div>
                 <p>
-                    TODO
+                    I'm not going to go over all of this again but it's very ugly, in fact more than half the size of the buffer is padding.
+                    TODO 
+                    <!-- TODO: write a sort of conclusion -->
                 </p>
 
                 <hr />
@@ -924,6 +941,13 @@
                             Update (2024-26-01): This used to be a footnote pointing out a small error in the DXC Wiki page on buffer packing, but it turns out that I did not read it carefully enough,
                             which is embarrassing and I apologize. After an exchange with a DXC developer, the linked page is being updated to be more clear and some wording was improved in this article as well.
                             <a href="#fnref:DXC-packing">↩</a>
+                        </li>
+                        <li id="fn:struct-variable-alignment">
+                            The "largest alignment" does count type alignment as well as variable alignment. There is no way to manually assign any kind of alignment in HLSL as of yet, so it isn't really important,
+                            but it is possible in C++, so I wanted to mention it at least in a footnote.
+                            For example, <code>struct { alignas(32) int i; };</code> would make the struct have a type alignment and size of 32 even though the <code>int</code> type itself has no modified alignment here.
+                            For completeness, the syntax for assigning a (larger) type alignment to a struct would be <code>struct alignas(N) t {...} name;</code>, while aligning an individual variable/member would look like <code>alignas(N) struct t {...} name;</code>.
+                            <a href="#fnref:struct-variable-alignment">↩</a>
                         </li>
                     </ol>
                 </aside>
