@@ -22,18 +22,64 @@
     <META HTTP-EQUIV='Content-Security-Policy' CONTENT="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: 'self' w3.org/svg/2000;">
     <meta name="google-site-verification" content="ZJ8tLJVKf9I0aKYguit8CTb2jMFPQLpaJhT1YpQ4eNo" />
 
+    <!-- without preload all these scripts are requested serially, incurring network latency every single time -->
+    <link rel="modulepreload" href="main.js" />
+    <link rel="modulepreload" href="hlsl_monaco.js" />
+    <link rel="modulepreload" href="cbuffer_parser.js" />
+    <link rel="modulepreload" href="cbuffer_layout.js" />
+    <link rel="modulepreload" href="cbuffer_visualizer.js" />
+
+    <!-- preload the most important fonts with higher priority -->
+    <link rel="preload" href="fonts/SourceSans3-Regular.ttf.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="preload" href="fonts/SourceSans3-Bold.ttf.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
     <style>
+        /* NOTE: standard fonts on different OSes are so wildly different in size that we need to serve our own fonts for consistency */
+        @font-face {
+            font-family: "Source Sans 3";
+            src: url("fonts/SourceSans3-Regular.ttf.woff2");
+        }
+
+        @font-face {
+            font-family: "Source Sans 3";
+            src: url("fonts/SourceSans3-Bold.ttf.woff2");
+            font-weight: bold;
+        }
+
+        @font-face {
+            font-family: "Source Sans 3";
+            src: url("fonts/SourceSans3-It.ttf.woff2");
+            font-style: italic;
+        }
+
+        @font-face {
+            font-family: "Source Code Pro";
+            src: url("fonts/SourceCodePro-Regular.ttf.woff2");
+        }
+
+        @font-face {
+            font-family: "Source Code Pro";
+            src: url("fonts/SourceCodePro-Bold.ttf.woff2");
+            font-weight: bold;
+        }
+
+        :root {
+            font-family: "Source Sans 3", sans-serif;
+            font-size: 18px;
+        }
+
         .code {
-            font-family: Consolas, monospace;
+            font-family: "Source Code Pro", monospace;
             font-size: 14px;
             white-space: pre;
         }
 
         code {
-            font-family: Consolas, monospace;
+            font-family: "Source Code Pro", monospace;
             white-space: pre;
             background-color: #EEEEEE;
-            font-size: 0.92em;
+            font-size: 0.94em; /* more in line with surrounding text */
+            display: inline-block; /* disable text justification */
         }
 
         .resizer {
@@ -56,12 +102,8 @@
             background-clip: content-box;
         }
 
-        :root {
-            font-size: 18px;
-        }
-
         #main_article p, #main_article i, .list_justified_spaced li {
-            line-height: 1.3;
+            line-height: 1.4;
             text-align: justify;
         }
 
@@ -102,7 +144,7 @@
             /*padding-top: 16px;*/
         }
 
-            .rule_definition > code {
+            .rule_definition code {
                 background-color: #d3ebff;
             }
 
@@ -202,6 +244,7 @@
 
         button {
             min-height: 2.2em;
+            font-family: Arial, sans-serif;
         }
     </style>
     <style title="CBV Dark Theme">
@@ -221,7 +264,6 @@
             color: rgb(255, 255, 255);
             background-color: rgb(14, 99, 156);
             border-color: rgb(118, 118, 118);
-            font-family: Arial, sans-serif;
         }
 
         code {
@@ -232,7 +274,7 @@
             color: #A0A0F4;
         }
 
-            .rule_definition > code {
+            .rule_definition code {
                 background-color: #251960;
             }
 
@@ -268,7 +310,7 @@
         <article>
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
                 <h2 style="margin-left:auto; margin-right:auto; width:fit-content">HLSL Constant Buffer Layout Visualizer</h2>
-                <div id="CBV_enable_div" style="background-image: url(screen1a.png); background-position: center top; width: 60em; max-width: 100%; height: 146px; margin-bottom: -24px; background-repeat: no-repeat;">
+                <div id="CBV_enable_div" style="background-image: url(screen1a.png); background-position: center top; width: 99vw; max-width: 100%; height: 146px; margin-bottom: -24px; background-repeat: no-repeat;">
                     <button id="CBV_enable_button" type="button" style="width: 17em; height: 6em; font-size: 1.1em; margin:auto; display:block; max-width:100%" disabled
                             onclick="CBV_Initialize(); this.disabled = true; this.textContent = 'Loading...'">
                         Click to Load Visualizer
@@ -390,16 +432,6 @@
         <script>
             var require = { paths: { vs: 'monaco-editor/min/vs' } };
         </script>
-
-        <!-- without preload all these scripts are requested serially, incurring network latency every single time -->
-        <link rel="modulepreload" href="main.js" />
-        <link rel="modulepreload" href="hlsl_monaco.js" />
-        <link rel="modulepreload" href="cbuffer_parser.js" />
-        <link rel="modulepreload" href="cbuffer_layout.js" />
-        <link rel="modulepreload" href="cbuffer_visualizer.js" />
-        <!--<link rel="preload" href="monaco-editor/min/vs/editor/editor.main.js" as="script"/>-->
-        <!--<link rel="preload" href="monaco-editor/min/vs/editor/editor.main.nls.js" as="script"/>-->
-        <!--<link rel="preload" href="monaco-editor/min/vs/loader.js" as="script"/>-->
 
         <script src="lz-string/libs/lz-string.min.js"></script>
 
@@ -554,13 +586,12 @@
             }
 
         </script>
-        <!-- TODO: maybe try to find a good default font -->
+
         <article id="main_article">
             <div style="margin: 0px auto; width:fit-content; max-width:100%">
                 <h2>HLSL Constant Buffer Packing Rules</h2>
             </div>
             <div class="article_width">
-                <!-- TODO: I vs We vs ??? -->
                 <h3 id="Introduction">0. Introduction</h3>
                 <p>
                     Constant Buffers in HLSL have rather peculiar rules for how their individual members are laid out in memory.
@@ -873,10 +904,13 @@
                     The <code>double</code> member of the inner struct in this example not only needs to be aligned to a multiple of 8 itself, it is also the member with the largest alignment within the struct.
                     If we took the members out of the inner struct, <code>start</code> could be at offset 4, <code>lorg</code> could be at offset 8, etc. and we would in fact have <em>no padding at all</em> inside the entire buffer.
                     However, as a consequence of the third rule for structured buffers, the inner struct is also assigned a type alignment of 8 and it must start at offset 8 here, despite its first member not needing that strong of an alignment.
-                    Thus, we need 4 bytes of padding before the struct and another 4 bytes before <code>lorg</code> to align them both correctly. Arrays are thankfully tightly packed in this type of buffer, so we don't directly provoke
-                    any extra padding for <code>u</code>. Still, we need to pad out the inner struct to a multiple of its alignment, so we do end up with another extra 4 bytes after the array.
-                    The "largest member alignment" rule also goes for the outer struct, so it too is allotted an alignment of 8 (from the <code>inner</code> member, which itself inherited it from <code>lorg</code>) and we need to pad out
-                    the very end of the struct. This is important because structured buffers are conceptually arrays of the type given in the template, so that padding at the end actually matters for the access stride.
+                    Thus, we need 4 bytes of padding before the struct and another 4 bytes before <code>lorg</code> to align them both correctly.
+                </p>
+                <p>
+                    Arrays are thankfully tightly packed in this type of buffer, so we don't directly provoke any extra padding for <code>u</code>. Still, we need to pad out the inner struct to a multiple of its alignment,
+                    hence we do end up with another extra 4 bytes after the array. The "largest member alignment" rule also goes for the outer struct, so it too is allotted an alignment of 8
+                    (from the <code>inner</code> member, which itself inherited it from <code>lorg</code>) and we need to pad out the very end of the struct. This is important because structured buffers are conceptually arrays
+                    of the type given in the template, so that padding at the end actually matters for the access stride.
                 </p>
                 <p>
                     This example is definitely an extreme case, usually there is very little if any padding at all in structured buffers given the common use cases and types used in HLSL, but since the rules for C/C++ are mostly the same,
@@ -938,7 +972,7 @@
                             <a href="#fnref:matrix-order">↩</a>
                         </li>
                         <li id="fn:DXC-packing">
-                            Update (2024-26-01): This used to be a footnote pointing out a small error in the DXC Wiki page on buffer packing, but it turns out that I did not read it carefully enough,
+                            <b>Update (2024-26-01)</b>: This used to be a footnote pointing out a small error in the DXC Wiki page on buffer packing, but it turns out that I did not read it carefully enough,
                             which is embarrassing and I apologize. After an exchange with a DXC developer, the linked page is being updated to be more clear and some wording was improved in this article as well.
                             <a href="#fnref:DXC-packing">↩</a>
                         </li>
@@ -946,7 +980,7 @@
                             The "largest alignment" does count type alignment as well as variable alignment. There is no way to manually assign any kind of alignment in HLSL as of yet, so it isn't really important,
                             but it is possible in C++, so I wanted to mention it at least in a footnote.
                             For example, <code>struct { alignas(32) int i; };</code> would make the struct have a type alignment and size of 32 even though the <code>int</code> type itself has no modified alignment here.
-                            For completeness, the syntax for assigning a (larger) type alignment to a struct would be <code>struct alignas(N) t {...} name;</code>, while aligning an individual variable/member would look like <code>alignas(N) struct t {...} name;</code>.
+                            For completeness, the syntax for assigning a (larger) type alignment to a struct would be <code>struct alignas(N) type { ... }</code>, while aligning an individual variable/member would look like <code>alignas(N) struct type { ... } name;</code>.
                             <a href="#fnref:struct-variable-alignment">↩</a>
                         </li>
                     </ol>
