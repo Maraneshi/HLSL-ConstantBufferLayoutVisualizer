@@ -37,29 +37,29 @@
         /* NOTE: standard fonts on different OSes are so wildly different in size that we need to serve our own fonts for consistency */
         @font-face {
             font-family: "Source Sans 3";
-            src: url("fonts/SourceSans3-Regular.ttf.woff2");
+            src: local("Source Sans 3"), local("SourceSans3-Regular"), url("fonts/SourceSans3-Regular.ttf.woff2");
         }
 
         @font-face {
             font-family: "Source Sans 3";
-            src: url("fonts/SourceSans3-Bold.ttf.woff2");
+            src: local("Source Sans 3 Bold"), local("SourceSans3-Bold"), url("fonts/SourceSans3-Bold.ttf.woff2");
             font-weight: bold;
         }
 
         @font-face {
             font-family: "Source Sans 3";
-            src: url("fonts/SourceSans3-It.ttf.woff2");
+            src: local("Source Sans 3 Italic"), local("SourceSans3-It"), url("fonts/SourceSans3-It.ttf.woff2");
             font-style: italic;
         }
 
         @font-face {
             font-family: "Source Code Pro";
-            src: url("fonts/SourceCodePro-Regular.ttf.woff2");
+            src: local("Source Code Pro"), local("SourceCodePro-Regular"), url("fonts/SourceCodePro-Regular.ttf.woff2");
         }
 
         @font-face {
             font-family: "Source Code Pro";
-            src: url("fonts/SourceCodePro-Bold.ttf.woff2");
+            src: local("Source Code Pro Bold"), local("SourceCodePro-Bold"), url("fonts/SourceCodePro-Bold.ttf.woff2");
             font-weight: bold;
         }
 
@@ -145,7 +145,7 @@
         }
 
             .rule_definition code {
-                background-color: #d3ebff;
+                background-color: #eff4ff;
             }
 
         .keyword {
@@ -276,6 +276,7 @@
 
             .rule_definition code {
                 background-color: #251960;
+                color: #b3b3ff;
             }
 
         a {
@@ -605,13 +606,15 @@
                     If you want to play around with your own constant buffers and confirm their memory layout, click the big button above (code editor not supported on mobile browsers).
                     There is a similar visualization available for C++ in
                     <a href="https://devblogs.microsoft.com/visualstudio/size-alignment-and-memory-layout-insights-for-c-classes-structs-and-unions/">Visual Studio 2022 version 17.9</a> (currently in preview as of 2024-XX-XX).
-                    <br /><b>Update (2024-XX-XX):</b> Structured Buffers are now supported in the visualizer and I have added a <a href="#Structured_Buffers">short explanation of the rules to the end of the article</a>,
+                </p>
+                <p>
+                    <b>Update (2024-XX-XX):</b> Structured Buffers are now supported in the visualizer and I have added a <a href="#Structured_Buffers">short explanation of the rules to the end of the article</a>,
                     including how they <em>can</em> differ from the rules for C structs depending on the platform.
                 </p>
                 <p>
                     Let's start by defining what <dfn>alignment</dfn> means.
-                    We say a memory address is "aligned to <var>n</var>" if it is evenly divisible by <var>n</var>, or in other words if the address is an integer multiple of <var>n</var>.
-                    If a type "has an alignment [requirement] of <var>n</var>" then an instance of it must always start at a memory address aligned to <var>n</var>. The alignment <var>n</var> is always a power of two.
+                    We say a memory address is "aligned to <var>N</var>" if it is evenly divisible by <var>N</var>, or in other words if the address is an integer multiple of <var>N</var>.
+                    If a type "has an alignment [requirement] of <var>N</var>" then an instance of it must always start at a memory address aligned to <var>N</var>. The alignment <var>N</var> is always a power of two.
                 </p>
                 <p>
                     In HLSL, we do not have access to memory addresses / pointers, so for our purpose of defining the layout of a constant buffer,

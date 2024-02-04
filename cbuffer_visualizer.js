@@ -640,9 +640,9 @@ export class BufferVisualizer {
         // connect text and rect nodes for highlighting
         // TODO: it feels cleaner to have it here, but we *could* put this in the StructLayoutVisualizer
         let add_event_listeners = (member) => {
-            let selection_bg_color = this.options.dark_theme ? "#04395e60" : "#0060c00a";
 
             member.CBV_mouseenter = () => {
+                let selection_bg_color = this.options.dark_theme ? "#04395e60" : "#0060c00a";
                 if (member.CBV_rects != undefined) {
                     for (let rect of member.CBV_rects) {
                         rect.rect.setAttribute("stroke-width", 5);
