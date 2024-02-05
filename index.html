@@ -409,7 +409,7 @@
                                 <div>
                                     <b>Updates:</b><br />
                                     <ul style="margin-top: 2px; margin-bottom: 2px; padding-left: 24px;">
-                                        <li>2024-XX-XX: Structured Buffers are now supported!</li> <!-- TODO: update date, write a few more words maybe? -->
+                                        <li>2024-02-05: Structured Buffers are now supported!</li>
                                     </ul>
                                 </div>
                             </div>
@@ -605,11 +605,11 @@
                     I will compare and contrast with those where appropriate, but explaining all the rules for different languages/buffer types from scratch is beyond the scope of this article.
                     If you want to play around with your own constant buffers and confirm their memory layout, click the big button above (code editor not supported on mobile browsers).
                     There is a similar visualization available for C++ in
-                    <a href="https://devblogs.microsoft.com/visualstudio/size-alignment-and-memory-layout-insights-for-c-classes-structs-and-unions/">Visual Studio 2022 version 17.9</a> (currently in preview as of 2024-XX-XX).
+                    <a href="https://devblogs.microsoft.com/visualstudio/size-alignment-and-memory-layout-insights-for-c-classes-structs-and-unions/">Visual Studio 2022 version 17.9</a> (currently in preview as of 2024-02-05).
                 </p>
                 <p>
-                    <b>Update (2024-XX-XX):</b> Structured Buffers are now supported in the visualizer and I have added a <a href="#Structured_Buffers">short explanation of the rules to the end of the article</a>,
-                    including how they <em>can</em> differ from the rules for C structs depending on the platform.
+                    <b>Update (2024-02-05):</b> Structured Buffers are now supported in the visualizer and I have added a <a href="#Structured_Buffers">short explanation of the rules to the end of the article</a>,
+                    including how they <em>can</em> differ from the rules for C structs depending on the target platform.
                 </p>
                 <p>
                     Let's start by defining what <dfn>alignment</dfn> means.
@@ -854,7 +854,7 @@
                     to the RGA (Radeon GPU Analyzer) compiler (this might not be 100% accurate to live testing due to differences in driver versions and because Compiler Explorer passes the shader to RGA via the SPIR-V
                     backend of DXC).
                 </p>
-                <h3 id="Structured_Buffers">6. Addendum (2024-XX-XX): Structured Buffers and C Structs</h3>
+                <h3 id="Structured_Buffers">6. Addendum (2024-02-05): Structured Buffers and C Structs</h3>
                 <p>
                     I was originally not going to write about Structured Buffers, but I ended up adding support to the visualizer anyways and all the relevant rules have already been briefly mentioned in the chapters above.
                 </p>
@@ -889,7 +889,6 @@
                 <p>
                     Let's do one example covering the rules above:
                 </p>
-
                 <div class="CBV_example">
                     struct ExampleSB {
                     float before;
@@ -918,23 +917,6 @@
                 <p>
                     This example is definitely an extreme case, usually there is very little if any padding at all in structured buffers given the common use cases and types used in HLSL, but since the rules for C/C++ are mostly the same,
                     this type of analysis can still be useful. As always, the examples are for illustrative purposes.
-                    The same struct in a constant buffer would look like this:
-                </p>
-                <div class="CBV_example">
-                    cbuffer ExampleCB {
-                    float before;
-                    struct Inner_t {
-                    float start;
-                    double lorg;
-                    uint16_t u[2];
-                    } inner;
-                    float after;
-                    };
-                </div>
-                <p>
-                    I'm not going to go over all of this again but it's very ugly, in fact more than half the size of the buffer is padding.
-                    TODO 
-                    <!-- TODO: write a sort of conclusion -->
                 </p>
 
                 <hr />

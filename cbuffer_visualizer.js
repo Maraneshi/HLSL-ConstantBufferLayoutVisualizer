@@ -97,7 +97,7 @@ class ColorArray {
         rgb[1] = Math.max(Math.min(rgb[1], 1.0), 0.0);
         rgb[2] = Math.max(Math.min(rgb[2], 1.0), 0.0);
         let srgb = gam_sRGB(rgb);
-        return `rgb(${srgb[0] * 255}, ${srgb[1] * 255}, ${srgb[2] * 255})`
+        return `rgb(${Math.round(srgb[0] * 255)}, ${Math.round(srgb[1] * 255)}, ${Math.round(srgb[2] * 255)})`
     }
     GetColorArray(dataLength) {
         let colorArray = [];

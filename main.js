@@ -62,7 +62,8 @@ cbuffer example {
         minimap: { enabled: false },
         automaticLayout: true,
         theme: 'vs-dark',
-        scrollBeyondLastLine: false
+        scrollBeyondLastLine: false,
+        fontFamily: "Source Code Pro"
     });
     parent.style.height = (editor.getContentHeight() + 16) + 'px';
     window.performance.measure("CreateMonacoEditor", { start: start });
