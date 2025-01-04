@@ -502,7 +502,10 @@ export class Parser {
                     type_declaration = this.ParseStructTypeDeclaration(true, true);
                 }
 
-                this.Expect(';');
+                if (token_type == TokenType.Keywords.CBuffer)
+                    this.Accept(';');
+                else
+                    this.Expect(';');
 
                 if (token_type == TokenType.Keywords.CBuffer || token_type == TokenType.Keywords.ConstantBuffer || token_type == TokenType.Keywords.StructuredBuffer) {
                     // treat top level declarations as "member variables" of the global scope so we can get their variable names
