@@ -32,35 +32,41 @@
     <!-- preload the most important fonts with higher priority -->
     <link rel="preload" href="fonts/SourceSans3-Regular.ttf.woff2" as="font" type="font/woff2" crossorigin="anonymous">
     <link rel="preload" href="fonts/SourceSans3-Bold.ttf.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="preload" href="fonts/SourceSans3-It.ttf.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 
     <style>
         /* NOTE: standard fonts on different OSes are so wildly different in size that we need to serve our own fonts for consistency */
         @font-face {
             font-family: "Source Sans 3";
             src: local("Source Sans 3"), local("SourceSans3-Regular"), url("fonts/SourceSans3-Regular.ttf.woff2");
+            font-display: block; /* wait until font is loaded */
         }
 
         @font-face {
             font-family: "Source Sans 3";
             src: local("Source Sans 3 Bold"), local("SourceSans3-Bold"), url("fonts/SourceSans3-Bold.ttf.woff2");
             font-weight: bold;
+            font-display: block; /* wait until font is loaded */
         }
 
         @font-face {
             font-family: "Source Sans 3";
             src: local("Source Sans 3 Italic"), local("SourceSans3-It"), url("fonts/SourceSans3-It.ttf.woff2");
             font-style: italic;
+            font-display: block; /* wait until font is loaded */
         }
 
         @font-face {
             font-family: "Source Code Pro";
             src: local("Source Code Pro"), local("SourceCodePro-Regular"), url("fonts/SourceCodePro-Regular.ttf.woff2");
+            font-display: block; /* wait until font is loaded */
         }
 
         @font-face {
             font-family: "Source Code Pro";
             src: local("Source Code Pro Bold"), local("SourceCodePro-Bold"), url("fonts/SourceCodePro-Bold.ttf.woff2");
             font-weight: bold;
+            font-display: block; /* wait until font is loaded */
         }
 
         :root {
@@ -267,7 +273,7 @@
         }
 
         code {
-            background-color: #3C3C3C;
+            background-color: #363636;
         }
 
         .rule_definition {
@@ -593,331 +599,345 @@
                 <h2>HLSL Constant Buffer Packing Rules</h2>
             </div>
             <div class="article_width">
-                <h3 id="Introduction">0. Introduction</h3>
-                <p>
-                    Constant Buffers in HLSL have rather peculiar rules for how their individual members are laid out in memory.
-                    These rules are very different from those for structures in C and C++ and very hard to practically impossible to implement in their type system.
-                    This often leads to a lot of confusion and frustration when the corresponding struct layouts in the CPU and GPU code mismatch and data ends up in the wrong places as a result.
-                    This article will teach you all the packing rules for constant buffers in HLSL for Direct3D 10 / Shader Model 4.0 or newer. <a href="#fn:DXC" id="fnref:DXC"><sup></sup></a>
-                </p>
-                <p>
-                    Note that these rules are <em>not</em> the same as for HLSL Structured Buffers (which are pretty much equal to C) or GLSL uniform buffers (called "std140 layout").
-                    I will compare and contrast with those where appropriate, but explaining all the rules for different languages/buffer types from scratch is beyond the scope of this article.
-                    If you want to play around with your own constant buffers and confirm their memory layout, click the big button above (code editor not supported on mobile browsers).
-                    There is a similar visualization available for C++ in
-                    <a href="https://devblogs.microsoft.com/visualstudio/size-alignment-and-memory-layout-insights-for-c-classes-structs-and-unions/">Visual Studio 2022 version 17.9</a> (currently in preview as of 2024-02-05).
-                </p>
-                <p>
-                    <b>Update (2024-02-05):</b> Structured Buffers are now supported in the visualizer and I have added a <a href="#Structured_Buffers">short explanation of the rules to the end of the article</a>,
-                    including how they <em>can</em> differ from the rules for C structs depending on the target platform.
-                </p>
-                <p>
-                    Let's start by defining what <dfn>alignment</dfn> means.
-                    We say a memory address is "aligned to <var>N</var>" if it is evenly divisible by <var>N</var>, or in other words if the address is an integer multiple of <var>N</var>.
-                    If a type "has an alignment [requirement] of <var>N</var>" then an instance of it must always start at a memory address aligned to <var>N</var>. The alignment <var>N</var> is always a power of two.
-                </p>
-                <p>
-                    In HLSL, we do not have access to memory addresses / pointers, so for our purpose of defining the layout of a constant buffer,
-                    we only need to care about the offset in bytes from the start of the buffer that is assigned to each member. <a href="#fn:cbuffer-alignment" id="fnref:cbuffer-alignment"><sup></sup></a>
-                    The definitions of alignment work equivalently for that offset.
-                    In order to maintain proper alignment for all members of a struct/buffer, it may be necessary to add invisible <dfn>padding</dfn> bytes in between them.
-                </p>
-                <p></p>
-                <div id="CBV_color_theme_controls_inline_container"><i>If you have trouble reading the examples, here are some controls for the colors and a theme switch for the whole site:</i><br /></div>
-                <p></p>
-                <h3 id="Type_Alignment">1. Type Alignment</h3>
-                <p class="rule_definition" id="rule1">
-                    <b>Rule #1</b>: Basic scalar types such as <code>float</code>, <code>uint</code>, <code>uint16_t</code>, etc. have a "natural" alignment requirement equal to their size. This is also called "self-alignment".
-                    <br /><b>Note</b>: <code>bool</code> in HLSL is 4 bytes large!
-                </p>
-                <!-- NOTE: formatting doesn't matter here, we auto-format when we replace this with the actual visualization -->
-                <div class="CBV_example">
-                    cbuffer ExampleScalarAlignment {
-                    uint16_t smol;
-                    float f1;
-                    float f2;
-                    double lorg;
-                    bool four_bytes;
-                    };
-                </div>
-                <p>
-                    <i>You can mouse over the colored struct members or the rectangles to highlight the individual elements.</i>
-                </p>
-                <p>
-                    In the example above, there are 2 bytes of padding added after <code>smol</code> in order to align <code>f1</code> properly to a multiple of 4.
-                    Similarly, <code>lorg</code> cannot start at an offset of 12 since that would not be an integer multiple of its alignment 8, resulting in an additional 4 bytes of padding in between <code>f2</code> and <code>lorg</code>.
-                </p>
-                <p>
-                    It's pretty rare to use the 2 or 8 byte large scalar types in HLSL, but this is the most fundamental alignment rule.
-                    It is common across most programming languages and target platforms because many processor architectures require the memory address of a load or store instruction to be aligned to the size of the load/store (x86 being one of the biggest exceptions).
-                    Misaligned addresses may result in either a CPU exception, unexpected results (e.g. the processor may round the address down to the nearest aligned one and thus load different data) or in some cases slower execution.
-                    This is why type self-alignment is very fundamental for program correctness and performance, so we make this our first rule, as it's practically universal.
-                </p>
-                <p>
-                    Tip: If you need to supply a <code>bool</code> to HLSL in any buffer type, use an actual 4 byte type on the CPU code side (e.g. <code>windows.h</code>'s <code>BOOL</code>, <code>uint32_t</code> or your own for C/C++).
-                    Do <em>not</em> use <code>alignas(4) bool</code> or manual padding (e.g. <code>bool b; char[3] pad;</code>) because you do not always have the guarantee that the internal padding bytes are zeroed out,
-                    but they will actually be read by the shader regardless and thus your boolean could produce a <code>true</code> value when it shouldn't!
-                </p>
-                <p>
-                    For the sake of completeness, the minimum-precision types (<code>min10/16*</code>) and <code>half</code> have a storage size (and thus alignment) in memory of 4 bytes by default, even though the driver compiler is
-                    allowed to emit lower precision ALU instructions for the min-precision types (not <code>half</code>, which is directly mapped to <code>float</code>). When you enable native 16-bit type support via the
-                    <code>-enable-16bit-types</code> command line argument to DXC, all of those types including <code>half</code> turn into actual 16-bit types like <code>(u)int16_t</code> or <code>float16_t</code> and have a corresponding
-                    size and alignment of 2 bytes, as in the examples. There are no types smaller than 4 bytes in HLSL without using DXC and this command line flag. <a href="#fn:16-bit-types" id="fnref:16-bit-types"><sup></sup></a>
-                </p>
-                <p class="rule_definition" id="rule1a">
-                    <b>Rule #1a</b>: Vector types are aligned according to their scalar component type.
-                </p>
-                <div class="CBV_example">
-                    cbuffer ExampleVectorAlignment {
-                    float f1;
-                    float3 vec;
-                    uint3 other_vec;
-                    float f2;
-                    float16_t smol;
-                    int2 intvec;
-                    };
-                </div>
-                <p>
-                    This is the first rule that might bring some surprise, especially if you are familiar with GLSL uniform buffers / std140, where a <code>vec3</code> (equivalent to <code>float3</code>) would have an alignment of 16.
-                    This is <em>not</em> the case in HLSL.
-                    The first four members in this example all have an alignment requirement of 4 and they can all be neatly packed together, it also doesn't matter that some of them are <code>float</code>s and some are <code>uint</code>s.
-                    Just like in the first example, we do incur some padding when a smaller type is followed by a larger one, but while the size of <code>intvec</code> is 8, it's alignment requirement is only 4 (based on its scalar type),
-                    so only 2 bytes of padding are needed.
-                </p>
-                <p>
-                    The rules we've covered so far are the only ones that deal with <dfn>type alignment</dfn> in constant buffers.
-                    All of the following rules are entirely unique to constant buffers and only involve <dfn>variable alignment</dfn>. I'll explain the difference between these two terms as we cover more rules and examples.
-                </p>
-                <h3 id="Buffer_Rows">2. Buffer Rows</h3>
-                <p class="rule_definition" id="rule2">
-                    <b>Rule #2</b>: A Constant Buffer is arranged conceptually like an array of 16-byte rows.
-                    The members of the buffer are packed into these rows and if an individual member would cross the boundary between two rows, its starting offset is forcibly aligned to 16 bytes,
-                    pushing it to the start of the next row if it isn't already aligned.
-                </p>
-                <div class="CBV_example">
-                    cbuffer ExampleBufferRows {
-                    float3 position;
-                    float3 normal;
-                    uint index;
-                    double4 d;
-                    };
-                </div>
-                <p>
-                    <i>This rule explains why I chose the visual memory layout diagrams to be in rows of 16 bytes.</i>
-                </p>
-                <p>
-                    In this example, two <code>float3</code> members next to each other incur 4 bytes of padding in between, but this is <em>not</em> because of the inherent alignment requirement of their type (which is still 4).
-                    The padding results purely from crossing a 16-byte row boundary within the buffer. It is only dependent on the size of a member and its initially desired starting offset,
-                    or effectively the <em>sequence</em> of member types in the buffer. This rule does not confer alignment to a type, but to a specific individual member variable and is thus no longer a <em>type alignment</em> rule.
-                    <code>normal</code> has a desired offset of 12, right at the end of <code>position</code>, but it is forcibly pushed to start at offset 16 because it does not fit entirely into the rest of the first 16-byte row.
-                </p>
-                <p>
-                    The member <code>index</code> is packed directly after <code>normal</code> with no padding and is here to demonstrate again that <code>float3</code> does <em>not</em> actually have a type alignment of 16,
-                    otherwise the size of the type itself would have to be padded to 16 as well. In C-like struct packing, the size of a type must always be an integer multiple of its alignment.
-                    Otherwise, an array of that type would misalign its elements and a struct containing an overaligned type would have its layout depend on its starting address.
-                    This common rule <em>never</em> applies to types inside constant buffers because those specific problems with arrays and structs are already solved in other ways, which we will see further below in rules #3 and #4,
-                    but let's not get ahead of ourselves.
-                    The <code>double4</code> variable is too large for one row even just by itself, but its starting offset is already aligned to 16 bytes without any modification, so it stays where it is.
-                </p>
-                <p>
-                    The row-packing rule is probably the most confusing of them all, because only looking at the offsets may imply an increased type alignment where there is none.
-                    In other languages, aligning individual variables is usually only relevant for allocating entire buffers when you do SIMD work or want cache or page alignment for other reasons.
-                    HLSL is very much the odd one out with its "array of 16-byte aligned rows" design for constant buffers that affects individual struct members, so it takes some time to get used to it.
-                    <a href="#fn:cbuffer-history" id="fnref:cbuffer-history"><sup></sup></a>
-                </p>
-                <p>
-                    I usually recommend manually padding out structs in C++ and equivalently in HLSL for consistency, instead of trying to emulate this behavior with <code>alignas(16)</code>
-                    (which can do either variable or type alignment depending on where you put it). For example, you could put <code>uint32_t pad0;</code> after <code>float3 position;</code>.
-                    Since the 4 byte scalar types and their vectors are a large majority of constant buffer usage (apart from matrices, which we'll get to later), it can help to conceptually think of
-                    your buffer as an array of <code>float4/uint4</code> elements and then assign "slots" for individual variables within those elements, leaving anything that isn't assigned as padding.
-                </p>
-                <p>
-                    Minimum-precision types (<code>min10/16*</code>) have weird interactions with this rule when native 16-bit types are <em>not</em> enabled. In that case, min-precision types cannot be packed
-                    together with regular fixed-precision types in the same row. My opinion: just don't use them.
-                </p>
-                <h3 id="Arrays_and_Matrices">3. Arrays and Matrices</h3>
-                <p class="rule_definition" id="rule3">
-                    <b>Rule #3</b>: Each element of an array starts a new 16-byte row, i.e. its starting offset is forcibly aligned to the next 16 byte boundary.
-                </p>
-                <div class="CBV_example">
-                    cbuffer ExampleArrays {
-                    float2 before;
-                    float array[2];
-                    float2 after;
-                    };
-                </div>
-                <p>
-                    <i>The individual array elements are expanded in this visualization to help clarify the layout. The resulting syntax isn't a legal struct declaration anymore.</i>
-                <p>
-                    This is one of the big pain points of constant buffers. Arrays are not packed tightly and instead must start a new 16-byte row for each element so that array indexing happens on a per-row basis,
-                    leading to potentially huge gaps in between array elements.
-                    This can be worked around by using larger element types (e.g. <code>float4 arr[4]</code> instead of <code>float arr[16]</code>), but then you have to use 2D indexing with division and modulo
-                    (e.g. <code>arr[i / 4][i % 4]</code> or equivalently <code>arr[i >> 2][i &amp; 3]</code>) which can then <em>hopefully</em> be optimized out once you go through the driver compiler
-                    (unlikely with a value only known at runtime).
-                    Note that as before, we are not increasing the elements' type alignment and not increasing the size of them to full rows, we are just aligning their starting offset as if they were individual variables,
-                    so the total size of <code>array</code> in this example is 20 bytes and the member <code>after</code> can be packed right at the end of the array with no additional padding.
-                </p>
-                <p>
-                    This is annoying to deal with in C++, because if the elements do not have a size divisible by 16, you would have to do away with the array and put them as individual variables with either
-                    added variable alignment via <code>alignas(16)</code> or manual padding before and in between (but not at the end!). You could also increase the size/alignment of the element type
-                    (e.g. making an array of padded structs), but then you have to make sure to add padding after the array on the HLSL side because it only adds it <em>in between</em> the array elements.
-                    None of these options are particularly great.
-                </p>
-                <p class="rule_definition" id="rule3a">
-                    <b>Rule #3a</b>: Matrices are laid out equivalently to arrays of column vectors (row vectors for row-major matrices). Hence, the array size is the number of columns (rows for row-major) and the vector size is the number of rows (columns).
-                    <br /><b>Exception</b>: Matrices with only one column (row for row-major) are layout-equivalent to a simple vector, not an array of one vector (i.e. they do not incur the extra 16 byte row alignment).
-                    <br /><b>Note</b>: The HLSL type is always <code>typeRxC</code> with <code>R</code> being the number of rows and <code>C</code> being the number of columns
-                    (matches math notation, but reverse order of GLSL/GLM's <code>matCxR</code>) and the default storage order is column-major. <a href="#fn:matrix-order" id="fnref:matrix-order"><sup></sup></a>
-                </p>
-                <div class="CBV_example">
-                    cbuffer ExampleMatrices {
-                    float2 before;
-                    float2x3 mat;
-                    float2x1 smol_mat;
-                    };
-                </div>
-                <p>
-                    <i>Matrices are converted into their layout-equivalent types in this visualization because it makes my job easier.</i>
-                </p>
-                <p>
-                    Thankfully, matrices just collapse down to the types and rules we've already learned about, with the only slightly tricky part being one-column matrices
-                    (note how <code>smol_mat</code> does not need to be 16-byte aligned, though those matrix dimensions do not seem particularly useful).
-                    The matrix <code>mat</code> turns into an array of three <code>float2</code> vectors and we incur the excessive padding cost of arrays just as in the previous example.
-                    It would be worth it to split this into three individual <code>float2 colN</code> variables to save 24 bytes of padding, though I should note that when later reconstructing the matrix in the shader,
-                    HLSL always expects rows in the constructor and not columns, no matter which storage order you chose.
-                </p>
-                <p>
-                    <i>
-                        I realize that the term "row" from <a href="#rule2">Rule #2</a> concerning the 16-byte boundaries within the buffer is now overloaded with matrix rows/columns, but what can you do.
-                    </i>
-                </p>
-                <h3 id="Inner_Structs">4. Inner Structs</h3>
-                <p class="rule_definition" id="rule4">
-                    <b>Rule #4</b>: Inner/nested structs must start at a 16-byte aligned offset.
-                </p>
-                <div class="CBV_example">
-                    cbuffer ExampleInnerStructs {
-                    float2 before;
-                    struct Inner_t {
-                    float start;
-                    double d;
-                    float end;
-                    } inner;
-                    float3 after;
-                    };
-                </div>
-                <p>
-                    Similar to array elements, inner struct variables are always forcibly aligned to start a new buffer row. As a result, we have some padding before the start of the struct in this example.
-                    All the previous rules still apply within the inner struct, in this case the self-alignment requirement for <code>d</code> dictates 4 bytes of padding so it can start at an offset divisible by 8.
-                </p>
-                <p>
-                    Of particular note here is that in C (and structured buffers), a struct has a type alignment equivalent to the largest alignment requirement of any of its members.
-                    This is to ensure all members are automatically aligned properly when the struct is constructed at an address conforming to the struct's type alignment (also including arrays of structs).
-                    If we implemented this example in C, <code>Inner_t</code> would have an alignment of 8 because of the <code>double</code> sub-member and thus a size of 24
-                    (the size must be a multiple of its type alignment, leading to 4 bytes of padding at the end inside the struct).
-                </p>
-                <p>
-                    This is <em>not</em> the case in HLSL constant buffers. Since the start of any struct is always forcibly aligned to 16 bytes and 16 is larger than any possible
-                    type alignment requirement in HLSL, the concern of having members misaligned is nonexistent and the struct type itself never has any padding before the end to account for some inherent type alignment
-                    (structs effectively have no type alignment of their own, it's all handled by the forced row alignment).
-                    In fact, no type inside a constant buffer can have padding at the start or end within itself that would count towards its size, any padding is always <em>in between</em> variables or array elements.
-                    Thus, <code>Inner_t</code> has a size of 20 and <code>after</code> can fit snugly in the remaining 12 bytes of the last buffer row
-                    (remember that if it crossed a 16-byte row boundary it would be pushed to start at the next row in accordance with <a href="#rule2">Rule #2</a>).
-                </p>
-                <p>
-                    This also means that this particular struct layout is very hard to implement in the C or C++ type system. You would first have to align the struct variable (not the type!) and then use your compiler's
-                    equivalent of <code>__attribute__((packed))</code> to forcibly remove the padding at the end of the struct, but then also add back any padding in between the sub-members. This ends up very brittle and confusing to read.
-                    It might be better to massage the HLSL side into something that is easier to translate to C
-                    (I will note again that the use of anything other than 4 byte types is rare in HLSL, but I do need to explain the rules regardless).
-                </p>
-                <p>
-                    Another consequence of this rule is that the memory layout within the inner struct is effectively independent of where it is in the buffer, because all the constant buffer rules work in alignments of 16 or smaller,
-                    so the struct layout is the same whether the start offset is 0 or any other integer multiple of 16.
-                    The mentioned "struct alignment equals the largest member alignment" rule for C similarly ensures the same layout independence of starting location, but in a more "fine-grained" way.
-                </p>
-                <h3 id="Sources_and_Methodology">5. Sources and Methodology</h3>
-                <p>
-                    I based the rules in this article on the following original sources:
-                </p>
-                <ul>
-                    <li>
-                        <a href="https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules">Packing Rules for Constant Variables (HLSL Reference, Microsoft Learn)</a>
-                    </li>
-                    <li>
-                        <a href="https://github.com/microsoft/DirectXShaderCompiler/wiki/Buffer-Packing">Alignment and Buffer Packing (Microsoft DXC GitHub Wiki)</a> <a href="#fn:DXC-packing" id="fnref:DXC-packing"><sup></sup></a>
-                    </li>
-                </ul>
-                <p>
-                    In addition, I checked all the rules and possibly ambiguous cases using DXC and sometimes FXC. DXC is easily accessible via <a href="https://hlsl.godbolt.org/">Compiler Explorer</a>.
-                    To check a buffer's layout on Compiler Explorer, you must first use it in the shader function in some way (any contrived usage will do, it just needs to not be optimized out) and then disable filtering
-                    comments on the compiler output tab. Those comments show buffer layouts, resource bindings and a few other things. Also useful: you can check the actual GPU instructions emitted for AMD GPUs by switching
-                    to the RGA (Radeon GPU Analyzer) compiler (this might not be 100% accurate to live testing due to differences in driver versions and because Compiler Explorer passes the shader to RGA via the SPIR-V
-                    backend of DXC).
-                </p>
-                <h3 id="Structured_Buffers">6. Addendum (2024-02-05): Structured Buffers and C Structs</h3>
-                <p>
-                    I was originally not going to write about Structured Buffers, but I ended up adding support to the visualizer anyways and all the relevant rules have already been briefly mentioned in the chapters above.
-                </p>
-                <h4>Rules for HLSL Structured Buffers:</h4>
-                <ol class="rule_definition list_justified_spaced">
-                    <li>All scalar types are self-aligned, i.e. their type alignment requirement is equal to their size. <br /><b>Note:</b> <code>bool</code> has a size of 4 bytes in HLSL.</li>
-                    <li>Vectors and matrices are aligned according to their scalar component type.</li>
-                    <li>Structures have a type alignment equal to the largest alignment among all of their members. <a href="#fn:struct-variable-alignment" id="fnref:struct-variable-alignment"><sup></sup></a></li>
-                    <li>
-                        The size of a type must be an integer multiple of its type alignment. Types not naturally conforming to this rule will be padded at the end to enforce it.
-                        You could say this is the "stride" of a type in an array.
-                        <br /><b>Note:</b> There are no overaligned types (alignment > size) in HLSL and no way to create them (no <code>alignas</code>), so this only ever applies to structs.
-                    </li>
-                    <li>
-                        Array elements are instances of the element type and must therefore obey the above rules for their type alignment.
-                        Beyond that, arrays are packed tightly and do not impose any additional alignment rules or padding on top.
-                    </li>
-                </ol>
-                <p>
-                    Overall it's quite simple compared to Constant Buffers. Arrays, vectors and matrices really just fall back to the scalar and struct alignment rules, the extra rules for them are not technically needed
-                    and are just here for clarity. Padding can only happen if a larger type follows a smaller type or at the end of a struct to pad its size to a multiple of its alignment.
-                </p>
-                <p>
-                    These same rules generally also apply to structs in C, C++ and other languages with C-like packing (apart from the HLSL-specific notes). However, the size of some types may differ from platform to platform
-                    (e.g. <code>int</code>, <code>float</code> or <code>bool</code>) and sometimes types are not even self-aligned. The most prominent example for non-self-alignment would be
-                    32-bit x86 Linux-based targets, where <code>double</code> has a size of 8, but only an alignment of 4.
-                    There are many other architectures with uncommon type sizes, formats or alignments, but they're usually embedded systems, 8- or 16-bit and/or DSPs, so not particularly relevant to look at for HLSL programming.
-                    Apart from potentially 32-bit x86 Linux, there are probably no platforms anyone would write HLSL code for where equivalently defined C structs and Structured Buffers differ in their memory layout,
-                    outside of the <code>bool</code> type being a different size.
-                    I will not discuss bitfields here because the rules differ by compiler, platform and language standard and I'm not even sure how they match up with HLSL 2021, use at your own risk.
-                </p>
-                <p>
-                    Let's do one example covering the rules above:
-                </p>
-                <div class="CBV_example">
-                    struct ExampleSB {
-                    float before;
-                    struct Inner_t {
-                    float start;
-                    double lorg;
-                    uint16_t u[2];
-                    } inner;
-                    float after;
-                    };
+                <section>
+                    <h3 id="Introduction">0. Introduction</h3>
+                    <p>
+                        Constant Buffers in HLSL have rather peculiar rules for how their individual members are laid out in memory.
+                        These rules are very different from those for structures in C and C++ and very hard to practically impossible to implement in their type system.
+                        This often leads to a lot of confusion and frustration when the corresponding struct layouts in the CPU and GPU code mismatch and data ends up in the wrong places as a result.
+                        This article will teach you all the packing rules for constant buffers in HLSL for Direct3D 10 / Shader Model 4.0 or newer. <a href="#fn:DXC" id="fnref:DXC"><sup></sup></a>
+                    </p>
+                    <p>
+                        Note that these rules are <em>not</em> the same as for HLSL Structured Buffers (which are pretty much equal to C) or GLSL uniform buffers (called "std140 layout").
+                        I will compare and contrast with those where appropriate, but explaining all the rules for different languages/buffer types from scratch is beyond the scope of this article.
+                        If you want to play around with your own constant buffers and confirm their memory layout, click the big button above (code editor not supported on mobile browsers).
+                        There is a similar visualization available for C++ in
+                        <a href="https://devblogs.microsoft.com/visualstudio/size-alignment-and-memory-layout-insights-for-c-classes-structs-and-unions/">Visual Studio 2022 version 17.9</a> (currently in preview as of 2024-02-05).
+                    </p>
+                    <p>
+                        <b>Update (2024-02-05):</b> Structured Buffers are now supported in the visualizer and I have added a <a href="#Structured_Buffers">short explanation of the rules to the end of the article</a>,
+                        including how they <em>can</em> differ from the rules for C structs depending on the target platform.
+                    </p>
+                    <p>
+                        Let's start by defining what <dfn>alignment</dfn> means.
+                        We say a memory address is "aligned to <var>N</var>" if it is evenly divisible by <var>N</var>, or in other words if the address is an integer multiple of <var>N</var>.
+                        If a type "has an alignment [requirement] of <var>N</var>" then an instance of it must always start at a memory address aligned to <var>N</var>. The alignment <var>N</var> is always a power of two.
+                    </p>
+                    <p>
+                        In HLSL, we do not have access to memory addresses / pointers, so for our purpose of defining the layout of a constant buffer,
+                        we only need to care about the offset in bytes from the start of the buffer that is assigned to each member. <a href="#fn:cbuffer-alignment" id="fnref:cbuffer-alignment"><sup></sup></a>
+                        The definitions of alignment work equivalently for that offset.
+                        In order to maintain proper alignment for all members of a struct/buffer, it may be necessary to add invisible <dfn>padding</dfn> bytes in between them.
+                    </p>
+                    <p></p>
+                    <div id="CBV_color_theme_controls_inline_container"><i>If you have trouble reading the examples, here are some controls for the colors and a theme switch for the whole site:</i><br /></div>
+                    <p></p>
+                </section>
+                <section>
+                    <h3 id="Type_Alignment">1. Type Alignment</h3>
+                    <p class="rule_definition" id="rule1">
+                        <b>Rule #1</b>: Basic scalar types such as <code>float</code>, <code>uint</code>, <code>uint16_t</code>, etc. have a "natural" alignment requirement equal to their size. This is also called "self-alignment".
+                        <br /><b>Note</b>: <code>bool</code> in HLSL is 4 bytes large!
+                    </p>
+                    <!-- NOTE: formatting doesn't matter here, we auto-format when we replace this with the actual visualization -->
+                    <div class="CBV_example">
+                        cbuffer ExampleScalarAlignment {
+                        uint16_t smol;
+                        float f1;
+                        float f2;
+                        double lorg;
+                        bool four_bytes;
+                        };
+                    </div>
+                    <p>
+                        <i>You can mouse over the colored struct members or the rectangles to highlight the individual elements.</i>
+                    </p>
+                    <p>
+                        In the example above, there are 2 bytes of padding added after <code>smol</code> in order to align <code>f1</code> properly to a multiple of 4.
+                        Similarly, <code>lorg</code> cannot start at an offset of 12 since that would not be an integer multiple of its alignment 8, resulting in an additional 4 bytes of padding in between <code>f2</code> and <code>lorg</code>.
+                    </p>
+                    <p>
+                        It's pretty rare to use the 2 or 8 byte large scalar types in HLSL, but this is the most fundamental alignment rule.
+                        It is common across most programming languages and target platforms because many processor architectures require the memory address of a load or store instruction to be aligned to the size of the load/store (x86 being one of the biggest exceptions).
+                        Misaligned addresses may result in either a CPU exception, unexpected results (e.g. the processor may round the address down to the nearest aligned one and thus load different data) or in some cases slower execution.
+                        This is why type self-alignment is very fundamental for program correctness and performance, so we make this our first rule, as it's practically universal.
+                    </p>
+                    <p>
+                        Tip: If you need to supply a <code>bool</code> to HLSL in any buffer type, use an actual 4 byte type on the CPU code side (e.g. <code>windows.h</code>'s <code>BOOL</code>, <code>uint32_t</code> or your own for C/C++).
+                        Do <em>not</em> use <code>alignas(4) bool</code> or manual padding (e.g. <code>bool b; char[3] pad;</code>) because you do not always have the guarantee that the internal padding bytes are zeroed out,
+                        but they will actually be read by the shader regardless and thus your boolean could produce a <code>true</code> value when it shouldn't!
+                    </p>
+                    <p>
+                        For the sake of completeness, the minimum-precision types (<code>min10/16*</code>) and <code>half</code> have a storage size (and thus alignment) in memory of 4 bytes by default, even though the driver compiler is
+                        allowed to emit lower precision ALU instructions for the min-precision types (not <code>half</code>, which is directly mapped to <code>float</code>). When you enable native 16-bit type support via the
+                        <code>-enable-16bit-types</code> command line argument to DXC, all of those types including <code>half</code> turn into actual 16-bit types like <code>(u)int16_t</code> or <code>float16_t</code> and have a corresponding
+                        size and alignment of 2 bytes, as in the examples. There are no types smaller than 4 bytes in HLSL without using DXC and this command line flag. <a href="#fn:16-bit-types" id="fnref:16-bit-types"><sup></sup></a>
+                    </p>
+                    <p class="rule_definition" id="rule1a">
+                        <b>Rule #1a</b>: Vector types are aligned according to their scalar component type.
+                    </p>
+                    <div class="CBV_example">
+                        cbuffer ExampleVectorAlignment {
+                        float f1;
+                        float3 vec;
+                        uint3 other_vec;
+                        float f2;
+                        float16_t smol;
+                        int2 intvec;
+                        };
+                    </div>
+                    <p>
+                        This is the first rule that might bring some surprise, especially if you are familiar with GLSL uniform buffers / std140, where a <code>vec3</code> (equivalent to <code>float3</code>) would have an alignment of 16.
+                        This is <em>not</em> the case in HLSL.
+                        The first four members in this example all have an alignment requirement of 4 and they can all be neatly packed together, it also doesn't matter that some of them are <code>float</code>s and some are <code>uint</code>s.
+                        Just like in the first example, we do incur some padding when a smaller type is followed by a larger one, but while the size of <code>intvec</code> is 8, it's alignment requirement is only 4 (based on its scalar type),
+                        so only 2 bytes of padding are needed.
+                    </p>
+                    <p>
+                        The rules we've covered so far are the only ones that deal with <dfn>type alignment</dfn> in constant buffers.
+                        All of the following rules are entirely unique to constant buffers and only involve <dfn>variable alignment</dfn>. I'll explain the difference between these two terms as we cover more rules and examples.
+                    </p>
+                </section>
+                <section>
+                    <h3 id="Buffer_Rows">2. Buffer Rows</h3>
+                    <p class="rule_definition" id="rule2">
+                        <b>Rule #2</b>: A Constant Buffer is arranged conceptually like an array of 16-byte rows.
+                        The members of the buffer are packed into these rows and if an individual member would cross the boundary between two rows, its starting offset is forcibly aligned to 16 bytes,
+                        pushing it to the start of the next row if it isn't already aligned.
+                    </p>
+                    <div class="CBV_example">
+                        cbuffer ExampleBufferRows {
+                        float3 position;
+                        float3 normal;
+                        uint index;
+                        double4 d;
+                        };
+                    </div>
+                    <p>
+                        <i>This rule explains why I chose the visual memory layout diagrams to be in rows of 16 bytes.</i>
+                    </p>
+                    <p>
+                        In this example, two <code>float3</code> members next to each other incur 4 bytes of padding in between, but this is <em>not</em> because of the inherent alignment requirement of their type (which is still 4).
+                        The padding results purely from crossing a 16-byte row boundary within the buffer. It is only dependent on the size of a member and its initially desired starting offset,
+                        or effectively the <em>sequence</em> of member types in the buffer. This rule does not confer alignment to a type, but to a specific individual member variable and is thus no longer a <em>type alignment</em> rule.
+                        <code>normal</code> has a desired offset of 12, right at the end of <code>position</code>, but it is forcibly pushed to start at offset 16 because it does not fit entirely into the rest of the first 16-byte row.
+                    </p>
+                    <p>
+                        The member <code>index</code> is packed directly after <code>normal</code> with no padding and is here to demonstrate again that <code>float3</code> does <em>not</em> actually have a type alignment of 16,
+                        otherwise the size of the type itself would have to be padded to 16 as well. In C-like struct packing, the size of a type must always be an integer multiple of its alignment.
+                        Otherwise, an array of that type would misalign its elements and a struct containing an overaligned type would have its layout depend on its starting address.
+                        This common rule <em>never</em> applies to types inside constant buffers because those specific problems with arrays and structs are already solved in other ways, which we will see further below in rules #3 and #4,
+                        but let's not get ahead of ourselves.
+                        The <code>double4</code> variable is too large for one row even just by itself, but its starting offset is already aligned to 16 bytes without any modification, so it stays where it is.
+                    </p>
+                    <p>
+                        The row-packing rule is probably the most confusing of them all, because only looking at the offsets may imply an increased type alignment where there is none.
+                        In other languages, aligning individual variables is usually only relevant for allocating entire buffers when you do SIMD work or want cache or page alignment for other reasons.
+                        HLSL is very much the odd one out with its "array of 16-byte aligned rows" design for constant buffers that affects individual struct members, so it takes some time to get used to it.
+                        <a href="#fn:cbuffer-history" id="fnref:cbuffer-history"><sup></sup></a>
+                    </p>
+                    <p>
+                        I usually recommend manually padding out structs in C++ and equivalently in HLSL for consistency, instead of trying to emulate this behavior with <code>alignas(16)</code>
+                        (which can do either variable or type alignment depending on where you put it). For example, you could put <code>uint32_t pad0;</code> after <code>float3 position;</code>.
+                        Since the 4 byte scalar types and their vectors are a large majority of constant buffer usage (apart from matrices, which we'll get to later), it can help to conceptually think of
+                        your buffer as an array of <code>float4/uint4</code> elements and then assign "slots" for individual variables within those elements, leaving anything that isn't assigned as padding.
+                    </p>
+                    <p>
+                        Minimum-precision types (<code>min10/16*</code>) have weird interactions with this rule when native 16-bit types are <em>not</em> enabled. In that case, min-precision types cannot be packed
+                        together with regular fixed-precision types in the same row. My opinion: just don't use them.
+                    </p>
+                </section>
+                <section>
+                    <h3 id="Arrays_and_Matrices">3. Arrays and Matrices</h3>
+                    <p class="rule_definition" id="rule3">
+                        <b>Rule #3</b>: Each element of an array starts a new 16-byte row, i.e. its starting offset is forcibly aligned to the next 16 byte boundary.
+                    </p>
+                    <div class="CBV_example">
+                        cbuffer ExampleArrays {
+                        float2 before;
+                        float array[2];
+                        float2 after;
+                        };
+                    </div>
+                    <p>
+                        <i>The individual array elements are expanded in this visualization to help clarify the layout. The resulting syntax isn't a legal struct declaration anymore.</i>
+                    <p>
+                        This is one of the big pain points of constant buffers. Arrays are not packed tightly and instead must start a new 16-byte row for each element so that array indexing happens on a per-row basis,
+                        leading to potentially huge gaps in between array elements.
+                        This can be worked around by using larger element types (e.g. <code>float4 arr[4]</code> instead of <code>float arr[16]</code>), but then you have to use 2D indexing with division and modulo
+                        (e.g. <code>arr[i / 4][i % 4]</code> or equivalently <code>arr[i >> 2][i &amp; 3]</code>) which can then <em>hopefully</em> be optimized out once you go through the driver compiler
+                        (unlikely with a value only known at runtime).
+                        Note that as before, we are not increasing the elements' type alignment and not increasing the size of them to full rows, we are just aligning their starting offset as if they were individual variables,
+                        so the total size of <code>array</code> in this example is 20 bytes and the member <code>after</code> can be packed right at the end of the array with no additional padding.
+                    </p>
+                    <p>
+                        This is annoying to deal with in C++, because if the elements do not have a size divisible by 16, you would have to do away with the array and put them as individual variables with either
+                        added variable alignment via <code>alignas(16)</code> or manual padding before and in between (but not at the end!). You could also increase the size/alignment of the element type
+                        (e.g. making an array of padded structs), but then you have to make sure to add padding after the array on the HLSL side because it only adds it <em>in between</em> the array elements.
+                        None of these options are particularly great.
+                    </p>
+                    <p class="rule_definition" id="rule3a">
+                        <b>Rule #3a</b>: Matrices are laid out equivalently to arrays of column vectors (row vectors for row-major matrices). Hence, the array size is the number of columns (rows for row-major) and the vector size is the number of rows (columns).
+                        <br /><b>Exception</b>: Matrices with only one column (row for row-major) are layout-equivalent to a simple vector, not an array of one vector (i.e. they do not incur the extra 16 byte row alignment).
+                        <br /><b>Note</b>: The HLSL type is always <code>typeRxC</code> with <code>R</code> being the number of rows and <code>C</code> being the number of columns
+                        (matches math notation, but reverse order of GLSL/GLM's <code>matCxR</code>) and the default storage order is column-major. <a href="#fn:matrix-order" id="fnref:matrix-order"><sup></sup></a>
+                    </p>
+                    <div class="CBV_example">
+                        cbuffer ExampleMatrices {
+                        float2 before;
+                        float2x3 mat;
+                        float2x1 smol_mat;
+                        };
+                    </div>
+                    <p>
+                        <i>Matrices are converted into their layout-equivalent types in this visualization because it makes my job easier.</i>
+                    </p>
+                    <p>
+                        Thankfully, matrices just collapse down to the types and rules we've already learned about, with the only slightly tricky part being one-column matrices
+                        (note how <code>smol_mat</code> does not need to be 16-byte aligned, though those matrix dimensions do not seem particularly useful).
+                        The matrix <code>mat</code> turns into an array of three <code>float2</code> vectors and we incur the excessive padding cost of arrays just as in the previous example.
+                        It would be worth it to split this into three individual <code>float2 colN</code> variables to save 24 bytes of padding, though I should note that when later reconstructing the matrix in the shader,
+                        HLSL always expects rows in the constructor and not columns, no matter which storage order you chose.
+                    </p>
+                    <p>
+                        <i>
+                            I realize that the term "row" from <a href="#rule2">Rule #2</a> concerning the 16-byte boundaries within the buffer is now overloaded with matrix rows/columns, but what can you do.
+                        </i>
+                    </p>
+                </section>
+                <section>
+                    <h3 id="Inner_Structs">4. Inner Structs</h3>
+                    <p class="rule_definition" id="rule4">
+                        <b>Rule #4</b>: Inner/nested structs must start at a 16-byte aligned offset.
+                    </p>
+                    <div class="CBV_example">
+                        cbuffer ExampleInnerStructs {
+                        float2 before;
+                        struct Inner_t {
+                        float start;
+                        double d;
+                        float end;
+                        } inner;
+                        float3 after;
+                        };
+                    </div>
+                    <p>
+                        Similar to array elements, inner struct variables are always forcibly aligned to start a new buffer row. As a result, we have some padding before the start of the struct in this example.
+                        All the previous rules still apply within the inner struct, in this case the self-alignment requirement for <code>d</code> dictates 4 bytes of padding so it can start at an offset divisible by 8.
+                    </p>
+                    <p>
+                        Of particular note here is that in C (and structured buffers), a struct has a type alignment equivalent to the largest alignment requirement of any of its members.
+                        This is to ensure all members are automatically aligned properly when the struct is constructed at an address conforming to the struct's type alignment (also including arrays of structs).
+                        If we implemented this example in C, <code>Inner_t</code> would have an alignment of 8 because of the <code>double</code> sub-member and thus a size of 24
+                        (the size must be a multiple of its type alignment, leading to 4 bytes of padding at the end inside the struct).
+                    </p>
+                    <p>
+                        This is <em>not</em> the case in HLSL constant buffers. Since the start of any struct is always forcibly aligned to 16 bytes and 16 is larger than any possible
+                        type alignment requirement in HLSL, the concern of having members misaligned is nonexistent and the struct type itself never has any padding before the end to account for some inherent type alignment
+                        (structs effectively have no type alignment of their own, it's all handled by the forced row alignment).
+                        In fact, no type inside a constant buffer can have padding at the start or end within itself that would count towards its size, any padding is always <em>in between</em> variables or array elements.
+                        Thus, <code>Inner_t</code> has a size of 20 and <code>after</code> can fit snugly in the remaining 12 bytes of the last buffer row
+                        (remember that if it crossed a 16-byte row boundary it would be pushed to start at the next row in accordance with <a href="#rule2">Rule #2</a>).
+                    </p>
+                    <p>
+                        This also means that this particular struct layout is very hard to implement in the C or C++ type system. You would first have to align the struct variable (not the type!) and then use your compiler's
+                        equivalent of <code>__attribute__((packed))</code> to forcibly remove the padding at the end of the struct, but then also add back any padding in between the sub-members. This ends up very brittle and confusing to read.
+                        It might be better to massage the HLSL side into something that is easier to translate to C
+                        (I will note again that the use of anything other than 4 byte types is rare in HLSL, but I do need to explain the rules regardless).
+                    </p>
+                    <p>
+                        Another consequence of this rule is that the memory layout within the inner struct is effectively independent of where it is in the buffer, because all the constant buffer rules work in alignments of 16 or smaller,
+                        so the struct layout is the same whether the start offset is 0 or any other integer multiple of 16.
+                        The mentioned "struct alignment equals the largest member alignment" rule for C similarly ensures the same layout independence of starting location, but in a more "fine-grained" way.
+                    </p>
+                </section>
+                <section>
+                    <h3 id="Sources_and_Methodology">5. Sources and Methodology</h3>
+                    <p>
+                        I based the rules in this article on the following original sources:
+                    </p>
+                    <ul>
+                        <li>
+                            <a href="https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules">Packing Rules for Constant Variables (HLSL Reference, Microsoft Learn)</a>
+                        </li>
+                        <li>
+                            <a href="https://github.com/microsoft/DirectXShaderCompiler/wiki/Buffer-Packing">Alignment and Buffer Packing (Microsoft DXC GitHub Wiki)</a>
+                        </li>
+                    </ul>
+                    <p>
+                        In addition, I checked all the rules and possibly ambiguous cases using DXC and sometimes FXC. DXC is easily accessible via <a href="https://hlsl.godbolt.org/">Compiler Explorer</a>.
+                        To check a buffer's layout on Compiler Explorer, you must first use it in the shader function in some way (any contrived usage will do, it just needs to not be optimized out) and then disable filtering
+                        comments on the compiler output tab. Those comments show buffer layouts, resource bindings and a few other things. Also useful: you can check the actual GPU instructions emitted for AMD GPUs by switching
+                        to the RGA (Radeon GPU Analyzer) compiler (this might not be 100% accurate to live testing due to differences in driver versions and because Compiler Explorer passes the shader to RGA via the SPIR-V
+                        backend of DXC).
+                    </p>
+                </section>
+                <section>
+                    <h3 id="Structured_Buffers">6. Addendum (2024-02-05): Structured Buffers and C Structs</h3>
+                    <p>
+                        I was originally not going to write about Structured Buffers, but I ended up adding support to the visualizer anyways and all the relevant rules have already been briefly mentioned in the chapters above.
+                    </p>
+                    <h4>Rules for HLSL Structured Buffers:</h4>
+                    <ol class="rule_definition list_justified_spaced">
+                        <li>All scalar types are self-aligned, i.e. their type alignment requirement is equal to their size. <br /><b>Note:</b> <code>bool</code> has a size of 4 bytes in HLSL.</li>
+                        <li>Vectors and matrices are aligned according to their scalar component type.</li>
+                        <li>Structures have a type alignment equal to the largest alignment among all of their members. <a href="#fn:struct-variable-alignment" id="fnref:struct-variable-alignment"><sup></sup></a></li>
+                        <li>
+                            The size of a type must be an integer multiple of its type alignment. Types not naturally conforming to this rule will be padded at the end to enforce it.
+                            You could say this is the "stride" of a type in an array.
+                            <br /><b>Note:</b> There are no overaligned types (alignment > size) in HLSL and no way to create them (no <code>alignas</code>), so this only ever applies to structs.
+                        </li>
+                        <li>
+                            Array elements are instances of the element type and must therefore obey the above rules for their type alignment.
+                            Beyond that, arrays are packed tightly and do not impose any additional alignment rules or padding on top.
+                        </li>
+                    </ol>
+                    <p>
+                        Overall it's quite simple compared to Constant Buffers. Arrays, vectors and matrices really just fall back to the scalar and struct alignment rules, the extra rules for them are not technically needed
+                        and are just here for clarity. Padding can only happen if a larger type follows a smaller type or at the end of a struct to pad its size to a multiple of its alignment.
+                    </p>
+                    <p>
+                        These same rules generally also apply to structs in C, C++ and other languages with C-like packing (apart from the HLSL-specific notes). However, the size of some types may differ from platform to platform
+                        (e.g. <code>int</code>, <code>float</code> or <code>bool</code>) and sometimes types are not even self-aligned. The most prominent example for non-self-alignment would be
+                        32-bit x86 Linux-based targets, where <code>double</code> has a size of 8, but only an alignment of 4.
+                        There are many other architectures with uncommon type sizes, formats or alignments, but they're usually embedded systems, 8- or 16-bit and/or DSPs, so not particularly relevant to look at for HLSL programming.
+                        Apart from potentially 32-bit x86 Linux, there are probably no platforms anyone would write HLSL code for where equivalently defined C structs and Structured Buffers differ in their memory layout,
+                        outside of the <code>bool</code> type being a different size.
+                        I will not discuss bitfields here because the rules differ by compiler, platform and language standard and I'm not even sure how they match up with HLSL 2021, use at your own risk.
+                    </p>
+                    <p>
+                        Let's do one example covering the rules above:
+                    </p>
+                    <div class="CBV_example">
+                        struct ExampleSB {
+                        float before;
+                        struct Inner_t {
+                        float start;
+                        double lorg;
+                        uint16_t u[2];
+                        } inner;
+                        float after;
+                        };
 
-                    StructuredBuffer&lt;ExampleSB&gt; ex;
-                </div>
-                <p>
-                    The <code>double</code> member of the inner struct in this example not only needs to be aligned to a multiple of 8 itself, it is also the member with the largest alignment within the struct.
-                    If we took the members out of the inner struct, <code>start</code> could be at offset 4, <code>lorg</code> could be at offset 8, etc. and we would in fact have <em>no padding at all</em> inside the entire buffer.
-                    However, as a consequence of the third rule for structured buffers, the inner struct is also assigned a type alignment of 8 and it must start at offset 8 here, despite its first member not needing that strong of an alignment.
-                    Thus, we need 4 bytes of padding before the struct and another 4 bytes before <code>lorg</code> to align them both correctly.
-                </p>
-                <p>
-                    Arrays are thankfully tightly packed in this type of buffer, so we don't directly provoke any extra padding for <code>u</code>. Still, we need to pad out the inner struct to a multiple of its alignment,
-                    hence we do end up with another extra 4 bytes after the array. The "largest member alignment" rule also goes for the outer struct, so it too is allotted an alignment of 8
-                    (from the <code>inner</code> member, which itself inherited it from <code>lorg</code>) and we need to pad out the very end of the struct. This is important because structured buffers are conceptually arrays
-                    of the type given in the template, so that padding at the end actually matters for the access stride.
-                </p>
-                <p>
-                    This example is definitely an extreme case, usually there is very little if any padding at all in structured buffers given the common use cases and types used in HLSL, but since the rules for C/C++ are mostly the same,
-                    this type of analysis can still be useful. As always, the examples are for illustrative purposes.
-                </p>
+                        StructuredBuffer&lt;ExampleSB&gt; ex;
+                    </div>
+                    <p>
+                        The <code>double</code> member of the inner struct in this example not only needs to be aligned to a multiple of 8 itself, it is also the member with the largest alignment within the struct.
+                        If we took the members out of the inner struct, <code>start</code> could be at offset 4, <code>lorg</code> could be at offset 8, etc. and we would in fact have <em>no padding at all</em> inside the entire buffer.
+                        However, as a consequence of the third rule for structured buffers, the inner struct is also assigned a type alignment of 8 and it must start at offset 8 here, despite its first member not needing that strong of an alignment.
+                        Thus, we need 4 bytes of padding before the struct and another 4 bytes before <code>lorg</code> to align them both correctly.
+                    </p>
+                    <p>
+                        Arrays are thankfully tightly packed in this type of buffer, so we don't directly provoke any extra padding for <code>u</code>. Still, we need to pad out the inner struct to a multiple of its alignment,
+                        hence we do end up with another extra 4 bytes after the array. The "largest member alignment" rule also goes for the outer struct, so it too is allotted an alignment of 8
+                        (from the <code>inner</code> member, which itself inherited it from <code>lorg</code>) and we need to pad out the very end of the struct. This is important because structured buffers are conceptually arrays
+                        of the type given in the template, so that padding at the end actually matters for the access stride.
+                    </p>
+                    <p>
+                        This example is definitely an extreme case, usually there is very little if any padding at all in structured buffers given the common use cases and types used in HLSL, but since the rules for C/C++ are mostly the same,
+                        this type of analysis can still be useful. As always, the examples are for illustrative purposes.
+                    </p>
+                </section>
 
                 <hr />
 
@@ -955,11 +975,6 @@
                             This pragma also allows you to complete the confusion by using <code>/Zpr</code> (changes all matrices to row-major) and then also <code>#pragma pack_matrix(column_major)</code> to only change matrices
                             contained within structs or cbuffers back to column-major.
                             <a href="#fnref:matrix-order">↩</a>
-                        </li>
-                        <li id="fn:DXC-packing">
-                            <b>Update (2024-26-01)</b>: This used to be a footnote pointing out a small error in the DXC Wiki page on buffer packing, but it turns out that I did not read it carefully enough,
-                            which is embarrassing and I apologize. After an exchange with a DXC developer, the linked page is being updated to be more clear and some wording was improved in this article as well.
-                            <a href="#fnref:DXC-packing">↩</a>
                         </li>
                         <li id="fn:struct-variable-alignment">
                             The "largest alignment" does count type alignment as well as variable alignment. There is no way to manually assign any kind of alignment in HLSL as of yet, so it isn't really important,
@@ -1038,12 +1053,12 @@
         <p>
             Copyright &copy; 2024 Maraneshi
         </p>
-        <a href="https://twitter.com/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#B197FC" d="M459.4 151.7c.3 4.5 .3 9.1 .3 13.6 0 138.7-105.6 298.6-298.6 298.6-59.5 0-114.7-17.2-161.1-47.1 8.4 1 16.6 1.3 25.3 1.3 49.1 0 94.2-16.6 130.3-44.8-46.1-1-84.8-31.2-98.1-72.8 6.5 1 13 1.6 19.8 1.6 9.4 0 18.8-1.3 27.6-3.6-48.1-9.7-84.1-52-84.1-103v-1.3c14 7.8 30.2 12.7 47.4 13.3-28.3-18.8-46.8-51-46.8-87.4 0-19.5 5.2-37.4 14.3-53 51.7 63.7 129.3 105.3 216.4 109.8-1.6-7.8-2.6-15.9-2.6-24 0-57.8 46.8-104.9 104.9-104.9 30.2 0 57.5 12.7 76.7 33.1 23.7-4.5 46.5-13.3 66.6-25.3-7.8 24.4-24.4 44.8-46.1 57.8 21.1-2.3 41.6-8.1 60.4-16.2-14.3 20.8-32.2 39.3-52.6 54.3z" /></svg></a>
-        <a href="https://mastodon.gamedev.place/@Maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#B197FC" d="M433 179.1c0-97.2-63.7-125.7-63.7-125.7-62.5-28.7-228.6-28.4-290.5 0 0 0-63.7 28.5-63.7 125.7 0 115.7-6.6 259.4 105.6 289.1 40.5 10.7 75.3 13 103.3 11.4 50.8-2.8 79.3-18.1 79.3-18.1l-1.7-36.9s-36.3 11.4-77.1 10.1c-40.4-1.4-83-4.4-89.6-54a102.5 102.5 0 0 1 -.9-13.9c85.6 20.9 158.7 9.1 178.8 6.7 56.1-6.7 105-41.3 111.2-72.9 9.8-49.8 9-121.5 9-121.5zm-75.1 125.2h-46.6v-114.2c0-49.7-64-51.6-64 6.9v62.5h-46.3V197c0-58.5-64-56.6-64-6.9v114.2H90.2c0-122.1-5.2-147.9 18.4-175 25.9-28.9 79.8-30.8 103.8 6.1l11.6 19.5 11.6-19.5c24.1-37.1 78.1-34.8 103.8-6.1 23.7 27.3 18.4 53 18.4 175z" /></svg></a>
-        <a href="https://cohost.org/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 416 300"><path fill="#B197FC" fill-rule="evenodd" clip-rule="evenodd" d="M335.13 249.687c-26.067 15.965-56.123 28.509-90.166 37.631-37.809 10.131-73.445 14.192-106.908 12.183-33.463-2.008-61.9733-10.738-85.5305-26.188-23.5573-15.45-39.4399-38.491-47.64762-69.123-8.2548-30.807-6.03245-58.746 6.66702-83.818 12.6995-25.0714 33.0606-46.755 61.0832-65.0511 28.0229-18.296 60.9379-32.5095 98.7469-42.6402C209.008 2.59678 244.501-1.47294 277.854.471489 300.262 1.778 320.475 6.10779 338.49 13.4609c8.799 3.591 17.073 7.9031 24.824 12.9363 23.621 15.3393 39.536 38.325 47.744 68.957 8.208 30.6318 5.93 58.5388-6.834 83.7218-1.783 3.518-3.714 6.97-5.793 10.358-1.468-6.614-4.418-12.382-8.849-17.302-2.175-2.415-4.593-4.634-7.255-6.655-5.451-4.138-11.924-7.448-19.418-9.932-11.153-3.697-23.582-5.545-37.285-5.545-13.766 0-26.242 1.832-37.428 5.497-11.185 3.665-20.076 9.178-26.673 16.539-6.597 7.362-9.895 16.651-9.895 27.868 0 11.154 3.298 20.427 9.895 27.821 6.597 7.393 15.488 12.954 26.673 16.682 11.186 3.729 23.662 5.593 37.428 5.593 3.24 0 6.408-.104 9.506-.313Zm-119.254-19.859c-2.613 2.804-7.218 5.784-13.814 8.939-6.597 3.155-14.548 5.816-23.853 7.982-9.305 2.167-19.311 3.251-30.019 3.251-9.369 0-18.547-.908-27.533-2.725-8.987-1.816-17.113-4.7-24.379-8.652-7.2658-3.951-13.0497-9.114-17.3519-15.487-4.302-6.374-6.4531-14.118-6.4531-23.232 0-9.241 2.1511-17.049 6.4531-23.422 4.3022-6.374 10.0861-11.504 17.3519-15.392 7.266-3.888 15.392-6.708 24.379-8.461 8.986-1.753 18.164-2.629 27.533-2.629 10.771 0 20.714.956 29.828 2.868s16.937 4.414 23.47 7.505c6.533 3.091 11.265 6.389 14.197 9.895l-24.474 16.061c-3.569-3.888-8.987-6.995-16.252-9.321-7.266-2.327-16.093-3.49-26.482-3.49-5.099 0-10.246.399-15.44 1.195-5.194.797-9.958 2.151-14.292 4.063s-7.824 4.589-10.469 8.031c-2.645 3.442-3.967 7.807-3.967 13.097 0 5.227 1.322 9.545 3.967 12.954 2.645 3.41 6.135 6.119 10.469 8.127 4.334 2.007 9.098 3.425 14.292 4.254 5.194.829 10.341 1.243 15.44 1.243 10.197 0 19.041-1.275 26.529-3.824 7.489-2.55 12.763-5.482 15.823-8.796l25.047 15.966Zm109.748-3.729c13.321 0 23.646-2.39 30.976-7.17 7.329-4.78 10.994-11.121 10.994-19.025 0-8.094-3.681-14.451-11.042-19.072-7.362-4.621-17.671-6.931-30.928-6.931-13.32 0-23.693 2.31-31.118 6.931-7.425 4.621-11.138 10.978-11.138 19.072 0 8.031 3.713 14.404 11.138 19.121 7.425 4.716 17.798 7.074 31.118 7.074Z"></path></svg></a>
-        <a href="https://twitch.tv/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#B197FC" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73.1H294.6l-67.6 64v-64H140.1V36.6H449.1z" /></svg></a>
-        <a href="https://github.com/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 496 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#B197FC" d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3 .3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5 .3-6.2 2.3zm44.2-1.7c-2.9 .7-4.9 2.6-4.6 4.9 .3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3 .7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3 .3 2.9 2.3 3.9 1.6 1 3.6 .7 4.3-.7 .7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3 .7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3 .7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z" /></svg></a>
-        <a href="https://buymeacoffee.com/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#B197FC" d="M169.7 .9c-22.8-1.6-41.9 14-47.5 34.7L110.4 80c.5 0 1.1 0 1.6 0c176.7 0 320 143.3 320 320c0 .5 0 1.1 0 1.6l44.4-11.8c20.8-5.5 36.3-24.7 34.7-47.5C498.5 159.5 352.5 13.5 169.7 .9zM399.8 410.2c.1-3.4 .2-6.8 .2-10.2c0-159.1-128.9-288-288-288c-3.4 0-6.8 .1-10.2 .2L.5 491.9c-1.5 5.5 .1 11.4 4.1 15.4s9.9 5.6 15.4 4.1L399.8 410.2zM176 208a32 32 0 1 1 0 64 32 32 0 1 1 0-64zm64 128a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zM96 384a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z" /></svg></a>
+        <a href="https://twitter.com/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#A0A0F4" d="M459.4 151.7c.3 4.5 .3 9.1 .3 13.6 0 138.7-105.6 298.6-298.6 298.6-59.5 0-114.7-17.2-161.1-47.1 8.4 1 16.6 1.3 25.3 1.3 49.1 0 94.2-16.6 130.3-44.8-46.1-1-84.8-31.2-98.1-72.8 6.5 1 13 1.6 19.8 1.6 9.4 0 18.8-1.3 27.6-3.6-48.1-9.7-84.1-52-84.1-103v-1.3c14 7.8 30.2 12.7 47.4 13.3-28.3-18.8-46.8-51-46.8-87.4 0-19.5 5.2-37.4 14.3-53 51.7 63.7 129.3 105.3 216.4 109.8-1.6-7.8-2.6-15.9-2.6-24 0-57.8 46.8-104.9 104.9-104.9 30.2 0 57.5 12.7 76.7 33.1 23.7-4.5 46.5-13.3 66.6-25.3-7.8 24.4-24.4 44.8-46.1 57.8 21.1-2.3 41.6-8.1 60.4-16.2-14.3 20.8-32.2 39.3-52.6 54.3z" /></svg></a>
+        <a href="https://mastodon.gamedev.place/@Maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#A0A0F4" d="M433 179.1c0-97.2-63.7-125.7-63.7-125.7-62.5-28.7-228.6-28.4-290.5 0 0 0-63.7 28.5-63.7 125.7 0 115.7-6.6 259.4 105.6 289.1 40.5 10.7 75.3 13 103.3 11.4 50.8-2.8 79.3-18.1 79.3-18.1l-1.7-36.9s-36.3 11.4-77.1 10.1c-40.4-1.4-83-4.4-89.6-54a102.5 102.5 0 0 1 -.9-13.9c85.6 20.9 158.7 9.1 178.8 6.7 56.1-6.7 105-41.3 111.2-72.9 9.8-49.8 9-121.5 9-121.5zm-75.1 125.2h-46.6v-114.2c0-49.7-64-51.6-64 6.9v62.5h-46.3V197c0-58.5-64-56.6-64-6.9v114.2H90.2c0-122.1-5.2-147.9 18.4-175 25.9-28.9 79.8-30.8 103.8 6.1l11.6 19.5 11.6-19.5c24.1-37.1 78.1-34.8 103.8-6.1 23.7 27.3 18.4 53 18.4 175z" /></svg></a>
+        <a href="https://maraneshi.bsky.social" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="48" width="48" viewBox="0 0 600 530"><path fill="#A0A0F4" d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z" /></svg></a>
+        <a href="https://twitch.tv/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#A0A0F4" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73.1H294.6l-67.6 64v-64H140.1V36.6H449.1z" /></svg></a>
+        <a href="https://github.com/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 496 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#A0A0F4" d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3 .3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5 .3-6.2 2.3zm44.2-1.7c-2.9 .7-4.9 2.6-4.6 4.9 .3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3 .7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3 .3 2.9 2.3 3.9 1.6 1 3.6 .7 4.3-.7 .7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3 .7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3 .7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z" /></svg></a>
+        <a href="https://buymeacoffee.com/maraneshi" style="padding:8px;"><svg xmlns="http://www.w3.org/2000/svg" height="48" width="48" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="#A0A0F4" d="M169.7 .9c-22.8-1.6-41.9 14-47.5 34.7L110.4 80c.5 0 1.1 0 1.6 0c176.7 0 320 143.3 320 320c0 .5 0 1.1 0 1.6l44.4-11.8c20.8-5.5 36.3-24.7 34.7-47.5C498.5 159.5 352.5 13.5 169.7 .9zM399.8 410.2c.1-3.4 .2-6.8 .2-10.2c0-159.1-128.9-288-288-288c-3.4 0-6.8 .1-10.2 .2L.5 491.9c-1.5 5.5 .1 11.4 4.1 15.4s9.9 5.6 15.4 4.1L399.8 410.2zM176 208a32 32 0 1 1 0 64 32 32 0 1 1 0-64zm64 128a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zM96 384a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z" /></svg></a>
     </footer>
     <!-- extra screen height so that the footnote links put you in the right place -->
     <div style="height:calc(100vh - (1.3em * 7));"></div>
