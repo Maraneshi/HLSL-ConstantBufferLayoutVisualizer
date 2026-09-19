@@ -1,5 +1,45 @@
 import { MemberVariable, BuiltinType, ArrayType, StructType } from './cbuffer_parser.js';
 
+
+// TODO: rewrite layout engine to be configurable by a rule set
+// maybe this isn't a good idea and ends up unreadable, will see how it goes
+// first pass can figure out individual alignments and sizes, second pass can do actual layout with padding
+// should we apply alignment rules for scalar, vector and matrix types at parsing? have a ScalarAlignment, VKBaseAlignment, etc. member, then pick the correct one during layouting
+//
+// note that "relaxed" std430 layout is weird, a struct with a float3 in it seems to still have 16 byte alignment on DXC (seems like glslang --hlsl-offsets agrees)
+// from Vulkan spec: inner structs have base alignment and thus must use the largest base alignment of their members even if those are *actually* laid out according to scalar alignment (for relaxed rules)
+// same thing most likely applies to relaxed std140 and possibly also arrays, need to do tests
+// glslang --hlsl-offsets does the incredibly confusing thing where it applies relaxed layout to all the members, but the struct itself has a size as if it was *not* laid out with relaxed rules
+// https://docs.vulkan.org/guide/latest/shader_memory_layout.html says this confusingly named flag *is* the official way to get relaxed layout rules
+// I also need to verify what glslang does with HLSL input, it might actually be different, e.g. because nested struct definitions are possible
+// old Vulkan 1.0 spec has the relaxed rule differences explained more thoroughly: https://github.com/KhronosGroup/Vulkan-Docs/blob/1.0/doc/specs/vulkan/chapters/interfaces.txt
+// Example test case: https://github.com/Microsoft/DirectXShaderCompiler/blob/2322f53773fa6e1c449046e091fe18415ae65d57/docs/SPIR-V.rst#memory-layout-rules
+// DXC has *changed* scalar layout rules since 1.8.2505 to be C rules, see https://github.com/microsoft/DirectXShaderCompiler/issues/7894
+// 
+// currently empty structs fail our layout comparison engine! 
+// double check empty struct layout, Vulkan says for base alignment the struct has alignment of the smallest possible type according to the SPIR-V caps enabled
+// empty structs are size 1 in C++, 0 in Vulkan/D3D HLSL and invalid in C (GCC and Clang do compile it to size 0 though, MSVC refuses)
+// we may not want to support them at all for the above reasons
+// 
+// Test straddling rules:
+// struct {
+//   float a;
+//   struct {
+//     float b;
+//     float2 c; 
+//   };
+// };
+// 
+// Test relaxed rules:
+// struct {
+//   struct Test {
+//     float a;
+//     float3 b;
+//   };
+//   float c;
+//   float3 d;
+// };
+
 export class BufferLayoutMember extends MemberVariable {
     constructor(type, name, offset, size = 0) {
         super(type, name);
@@ -159,3 +199,20 @@ export class StructuredBufferLayoutAlgorithm {
         return this.out_buffer_layouts;
     }
 };
+
+export class BufferLayoutRules {
+    StructAlignSize = false; // SB, ?
+    ArrayAlignSize = false; // SB, ?
+    VectorAlignSize = false; // not sure if this is true in any layout
+    StructBaseAlignment = false; // std430/140
+    VectorBaseAlignment = false; // non-relaxed std430/140
+    StructForceBaseSize = false; // glslang --hlsloffsets
+    VectorStraddlingRules = false; // std140, CBV, relaxed std430
+    StructAlign16 = false; // std140, CBV
+    ArrayAlign16 = false; // std140, CBV
+    MatrixFallsBackToVector = false; // SB, CBV
+}
+export class GenericBufferLayoutAlgorithm
+{
+
+}

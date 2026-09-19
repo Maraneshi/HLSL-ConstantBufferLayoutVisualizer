@@ -21,6 +21,43 @@ const tokens_unsupported = [
 //  - whenever we calculate padding, we loop through all forced offset variables in addition to the last non-forced variable
 //  - this is based on an incomplete understanding of packoffset, make some examples and check how they affect padding
 //  - maybe we can do one pass layouting *only* the forced offset vars and then a second pass doing everything else? like a "shadow struct" overlaid on top?
+//  - actually it seems using packoffset forces you to use it for every member? that makes things a lot easier
+
+// TODO: for bitfields:
+//  - find a portable strict subset and implement that first
+//    - no bitfield wider than underlying type
+//    - do not mix types other than signed vs unsigned (confirm this works on non-MSVC compilers)
+//    - always fill out the entire underlying type's width, explicitly specify padding / unused bits
+//    - find all documentation available from MSVC, GCC, clang, etc., test as much as possible
+//    - are there any edge cases specific to constant buffers?
+//      - bitfield inside last array element that doesn't fill out a whole unit doesn't seem to be one, but we're forbidding that anyways
+//    - attempted formalization of subset rules:
+//      - portable bitfields are organized into typed "storage units"
+//      - the first bitfield declaration `T field : N` in a series starts a storage unit of type T with natural alignment and size
+//      - subsequent bitfields are part of the same unit until all bits of type T are filled and must have a declared type of T or the corresponding signed/unsigned variant of it
+//      - all bits of the unit must be filled exactly and explicitly, neither implicit padding nor oversized bitfields are allowed
+//      - you cannot start a new storage unit if the current offset inside the struct is not suitably aligned to the unit's declared type T, you cannot assume implicit padding for alignment
+//      - you must be on a little endian platform: bitfields within storage units are in order of low bits to high bits
+//    - The above rules prevent ambiguous cases like these:
+//      struct Test {
+//        uint32_t a : 8;
+//        uint16_t b; // offset 4 on MSVC/DXC, offset 2 on GCC/clang
+//      }; // size 8 on MSVC/DXC, size 4 on GCC/clang, alignment 4 on all
+//      
+//      struct Test {
+//        uint16_t a : 16;
+//        uint32_t b : 16;
+//      }; // size 8 on MSVC/DXC, size 4 on GCC/clang, alignment 4 on all
+//
+//      struct T {
+//        uint16_t a : 16;
+//        uint32_t b : 16; // offset 4 on MSVC, 2 on GCC/clang (underlying type of bitfield is decided by width on GCC/clang!)
+//        uint32_t c : 16; // offset 6 on MSVC, 4 on GCC/clang
+//      }; // size 8 align 4 on all compilers (declared type of bitfield still dictates alignment of struct even on GCC/clang!)
+//      // CCCCBBBB0000AAAA vs 0000CCCCBBBBAAAA
+//    - godbolt testing grounds: https://gcc.godbolt.org/z/7TanYYWv7
+//    - should we check these rules in the parser or delay until layout?
+
 
 export const TokenType = {
     Identifier: "identifier",

@@ -13,9 +13,11 @@ function Mat3x3MulVec3(mat, vec) {
     return res;
 }
 
+// TODO: update oklab conversion constants, put this in its own file, more complete copyright notice, use original matmul function names
 ////////////////////////////////////////////////
 // OkLCH to sRGB color conversion, slightly modified from:
-// CSS Color Module Level 4 spec https://www.w3.org/TR/css-color-4/#color-conversion-code Copyright © 2022 World Wide Web Consortium. https://www.w3.org/copyright/software-license-2023/
+// CSS Color Module Level 4 spec https://www.w3.org/TR/css-color-4/#color-conversion-code
+// Copyright © 2022 World Wide Web Consortium. https://www.w3.org/copyright/software-license-2023/
 
 function gam_sRGB(RGB) {
     // convert an array of linear-light sRGB values in the range 0.0-1.0
@@ -698,6 +700,7 @@ export class BufferVisualizer {
         let RecordLayoutOffsetsSizes = (member, records) => {
             let size = member.size;
             // remove padding from end of inner structs because it doesn't matter for correctness whether the padding is inside or outside the type
+            // TODO/FIXME: this fails empty structs
             if (member.type instanceof StructType && !member.isGlobal) {
                 let last_submember = member.submembers[member.submembers.length - 1];
                 if (last_submember.padding > 0) {
